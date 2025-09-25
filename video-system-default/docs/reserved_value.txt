@@ -1,0 +1,39 @@
+# VIDEO SYSTEM AND FILE NAVIGATOR STORAGE VALUES CONFIGURTION FILE
+
+# This file contains upload limit and reserve value for the video system.
+
+# It is recommended not to upload it manually.
+
+#------------------------------------------------------------------------------------
+
+# Total disk space value
+
+total_disk_space = 9.51
+
+#------------------------------------------------------------------------------------
+
+# Used disk space value
+
+used_disk_space = 6.59
+
+#------------------------------------------------------------------------------------
+
+# Disk space reserve value
+
+reserved_value = 0.5
+
+#------------------------------------------------------------------------------------
+
+# Upload limit reserve value. Obtained by substracting : total disk size - reserved_value
+
+upload_limit_value = 2.62
+
+#------------------------------------------------------------------------------------
+
+# Unset reserved value flag. If the flag is set to True, reserved_value = 0. 
+# It means it is NOT SET
+
+reserved_value_flag = False
+
+#------------------------------------------------------------------------------------
+

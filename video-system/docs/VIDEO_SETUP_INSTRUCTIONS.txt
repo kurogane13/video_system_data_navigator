@@ -1,0 +1,195 @@
+================================================================================
+VIDEO LIBRARY & FILE MANAGEMENT SYSTEM - SETUP GUIDE
+================================================================================
+
+OVERVIEW:
+Secure video streaming and file management system with authentication, 
+uploads, terminal access, API testing, and storage management.
+
+================================================================================
+🏗️ QUICK START
+================================================================================
+
+DIRECTORY STRUCTURE:
+/home/gus/video-system/
+├── videos/         # Video files (MP4, WebM, AVI, MOV, MKV, FLV)
+├── docs/          # Web interface files
+├── scripts/       # Python API server
+└── logs/          # System and debug logs
+
+SERVICES:
+- Nginx (Port 10000): Static files and reverse proxy
+- Python API Server (Port 9090): Authentication and file operations
+- Access: http://your-server:10000
+
+================================================================================
+🔐 AUTHENTICATION
+================================================================================
+
+CREDENTIALS FILE: ~/.crds
+Current Admin Credentials: admin:ad18b632
+Format: username:password
+
+DEFAULT LOGIN:
+Username: admin
+Password: ad18b632
+
+To change credentials:
+1. Edit: nano ~/.crds
+2. Format: newuser:newpassword
+3. No restart required
+
+SECURITY: Session tokens, encrypted passwords, protected API endpoints
+
+================================================================================
+🌐 WEB INTERFACE FEATURES
+================================================================================
+
+VIDEO LIBRARY:
+✅ Stream videos directly in browser
+✅ Video metadata display (size, duration)
+✅ Play controls (play/pause, restart, mute, fullscreen)
+✅ Search and filter videos
+✅ Bulk operations and downloads
+
+FILE EXPLORER:
+✅ Browse file system with breadcrumb navigation
+✅ Create, delete, rename files and folders
+✅ Multi-file selection and bulk operations
+✅ Download individual files or zip archives
+
+UPLOAD SYSTEM:
+✅ Video uploads with format validation
+✅ General file uploads to any directory
+✅ Drag-and-drop interface
+✅ Progress tracking and error handling
+
+STORAGE MANAGEMENT:
+✅ Real-time storage capacity monitoring
+✅ Disk quota reserve configuration
+✅ Upload limit calculations
+✅ Storage status across all sections
+
+🆕 TERMINAL ACCESS:
+✅ Integrated web terminal with session persistence
+✅ Execute shell commands directly from browser
+✅ Multi-session support with working directory tracking
+✅ Secure authenticated terminal access
+
+🆕 API TESTING MODULE:
+✅ Interactive API call interface
+✅ Pre-configured curl commands
+✅ Test authentication, file operations, uploads
+✅ Copy-paste ready curl commands for external use
+
+🆕 LOGGING & DEBUGGING:
+✅ Comprehensive debug logging system
+✅ Modal debug log viewer in UI
+✅ Action logging and request tracking
+✅ Real-time log monitoring
+
+================================================================================
+🚀 SYSTEM MANAGEMENT
+================================================================================
+
+START SERVICES:
+sudo systemctl start nginx
+cd /home/gus/video-system/scripts && python3 auth_api_server.py &
+
+STOP SERVICES:
+sudo systemctl stop nginx
+pkill -f auth_api_server.py
+
+CHECK STATUS:
+sudo systemctl status nginx
+ps aux | grep auth_api_server
+
+VIEW LOGS:
+tail -f /home/gus/video-system/logs/debug.log
+# Or use the UI debug log viewer
+
+================================================================================
+🔧 CONFIGURATION
+================================================================================
+
+DISK QUOTA MANAGEMENT:
+- Access via "💽 Disk quota reserve limit" buttons
+- Set reserved disk space to prevent system crashes
+- Automatic upload limit calculations
+- Persistent configuration across reboots
+- Located: /home/gus/video-system/docs/reserved_value.txt
+
+NGINX CONFIG: /etc/nginx/sites-available/video-library
+API SERVER: /home/gus/video-system/scripts/auth_api_server.py
+
+FILE PERMISSIONS:
+sudo chown -R gus:gus /home/gus/video-system/
+chmod +x /home/gus/video-system/scripts/*.py
+
+FIREWALL:
+sudo ufw allow 10000/tcp
+sudo ufw allow 9090/tcp
+
+================================================================================
+🐛 TROUBLESHOOTING
+================================================================================
+
+COMMON ISSUES:
+
+Authentication Failed:
+- Check ~/.crds file format
+- Verify credentials
+- Clear browser cache
+
+Videos Not Loading:
+- Check file permissions
+- Verify video formats (MP4, WebM, AVI, MOV, MKV, FLV)
+- Check /home/gus/video-system/videos/ directory
+
+Server Connection Issues:
+- Verify services are running
+- Check firewall settings: sudo ufw status
+- Check logs: tail -f /home/gus/video-system/logs/debug.log
+
+Upload Failures:
+- Check disk space
+- Verify upload directory permissions
+- Check storage quota settings
+
+Terminal Not Working:
+- Verify authentication
+- Check server logs
+- Ensure websocket connection
+
+API Calls Failing:
+- Check authentication headers
+- Verify endpoint URLs
+- Use API testing module for debugging
+
+DEBUG LOG ACCESS:
+- Use "🔍 View Debug Logs" button in UI
+- Or check: /home/gus/video-system/logs/debug.log
+- Real-time monitoring available in web interface
+
+================================================================================
+🎯 NEW FEATURES QUICK ACCESS
+================================================================================
+
+TERMINAL: Click "💻 Terminal" button for web-based shell access
+API TESTING: Click "📡 API Calls" for interactive API testing interface
+DEBUG LOGS: Click "🔍 View Debug Logs" for real-time log monitoring
+STORAGE QUOTAS: Click "💽 Disk quota reserve limit" for storage management
+
+================================================================================
+📞 SUPPORT
+================================================================================
+
+All features are accessible through the main dashboard interface.
+Check debug logs for detailed error information.
+Use terminal access for direct system troubleshooting.
+
+System Path: /home/gus/video-system/
+Main Interface: http://your-server:10000
+API Endpoint: http://your-server:9090
+
+================================================================================

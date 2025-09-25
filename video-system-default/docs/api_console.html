@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Testing Console</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a0f2e;
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #0f0a1a;
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        h1 {
+            color: #00ffff;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .credentials {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #16213e;
+            border-radius: 5px;
+        }
+        .credentials input {
+            padding: 8px;
+            background: #0f0a1a;
+            border: 1px solid #00ffff;
+            color: white;
+            margin: 5px 10px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .controls-row {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+            align-items: flex-start;
+        }
+        .control-panel {
+            background: #16213e;
+            border: 2px solid #00ffff;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .basic-controls {
+            flex: 0 0 auto;
+        }
+        .api-buttons {
+            flex: 1;
+        }
+        .param-inputs {
+            flex: 2;
+        }
+        button {
+            padding: 12px 20px;
+            margin: 5px;
+            background: #16213e;
+            border: 2px solid #00ffff;
+            color: #00ffff;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #00ffff;
+            color: #000;
+        }
+        .toggle-container {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .toggle-switch {
+            display: inline-flex;
+            background: #000;
+            border: 2px solid #00ffff;
+            border-radius: 20px;
+            padding: 2px;
+        }
+        .toggle-option {
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            color: #00ffff;
+            cursor: pointer;
+            border-radius: 18px;
+            margin: 0;
+            transition: all 0.3s;
+        }
+        .toggle-option.active {
+            background: #00ff00;
+            color: #000;
+        }
+        
+        .toggle-option:not(.active) {
+            background: #ff0000;
+            color: #000;
+        }
+        .terminal {
+            background: #000;
+            border: 2px solid #333;
+            border-radius: 5px;
+            padding: 20px;
+            min-height: 300px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: white;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .success { color: #00ff00; }
+        .error { color: #ff0000; }
+        .warning { color: #ffff00; }
+        .info { color: white; }
+        .command { color: #00ff00; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="status">📡 API Testing Console</h1>
+        
+        <div class="credentials">
+            <label style="color: #00ffff;">Username:</label>
+            <input type="text" id="username" placeholder="Enter username" value="">
+            <label style="color: #00ffff;">Password:</label>
+            <input type="password" id="password" placeholder="Enter password" value="">
+        </div>
+        
+        <div class="toggle-container">
+            <div class="toggle-switch">
+                <button class="toggle-option active" id="json-toggle" onclick="setOutputFormat('json')">JSON</button>
+                <button class="toggle-option" id="text-toggle" onclick="setOutputFormat('text')">TEXT</button>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin: 15px 0; padding: 10px; background: rgba(255, 255, 0, 0.1); border-radius: 5px;">
+            <p style="color: #ffff00; margin: 5px 0; font-size: 14px;">📋 API Curl Calls: Shows text-only curl commands reference</p>
+            <p style="color: #ffff00; margin: 5px 0; font-size: 14px;">📖 Instructions: Shows text-only documentation content</p>
+        </div>
+        
+        <div class="controls-row">
+            <div class="control-panel basic-controls">
+                <h3 style="color: #00ffff; margin-top: 0;">Control</h3>
+                <button onclick="debugTest()">🔧 Debug Test</button><br>
+                <button onclick="authenticate()">🔐 Authenticate</button><br>
+                <button onclick="showApiCurlCalls()">📋 API Curl Calls</button><br>
+                <button onclick="clearTerminal()">🧹 Clear Terminal</button>
+            </div>
+            
+            <div class="control-panel api-buttons">
+                <h3 style="color: #00ffff; margin-top: 0;">API Endpoints</h3>
+                <button onclick="callApi('videos')">🎬 Videos</button>
+                <button onclick="callApi('list')">📁 Files</button><br>
+                <button onclick="callApi('storage')">💾 Storage</button>
+                <button onclick="callApi('instructions-info')">📖 Instructions</button>
+            </div>
+            
+            <div class="control-panel param-inputs">
+                <h3 style="color: #00ffff; margin-top: 0;">Full Path-Based Operations</h3>
+                <p style="color: #ffff00; font-size: 12px; margin: 5px 0;">Note: This section requires full file paths</p>
+                
+                <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 5px;">
+                    <button onclick="callApiWithPath('file')">📄 File Content</button>
+                    <input type="text" id="file-path" placeholder="/home/gus/video-system/docs" style="flex: 1; padding: 5px; background: #001122; color: #00ff00; border: 1px solid #00ffff;">
+                </div>
+                
+                <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 5px;">
+                    <button onclick="callApiWithPath('download')">⬇️ Download</button>
+                    <input type="text" id="download-path" placeholder="/home/gus/video-system/videos" style="flex: 1; padding: 5px; background: #001122; color: #00ff00; border: 1px solid #00ffff;">
+                </div>
+                
+                <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 5px;">
+                    <button onclick="callApiWithPath('view')">👁️ View File</button>
+                    <input type="text" id="view-path" placeholder="/home/gus/video-system/docs" style="flex: 1; padding: 5px; background: #001122; color: #00ff00; border: 1px solid #00ffff;">
+                </div>
+                
+                <div style="margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
+                        <button onclick="callApiWithPathAndOperation()">🔧 File Operations</button>
+                        <input type="text" id="operations-path" placeholder="/home/gus/video-system" style="flex: 1; padding: 5px; background: #001122; color: #00ff00; border: 1px solid #00ffff;">
+                    </div>
+                    <select id="operations-type" style="width: 200px; padding: 5px; background: #001122; color: #00ff00; border: 1px solid #00ffff;">
+                        <option value="list">List Directory</option>
+                        <option value="info">File/Dir Info</option>
+                        <option value="permissions">Show Permissions</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <div id="terminal" class="terminal">
+            <span class="info">API Testing Console Ready</span><br>
+            <span class="info">Click 'Debug Test' to verify JavaScript is working</span><br>
+            <span class="info">Then enter credentials and click 'Authenticate'</span><br><br>
+        </div>
+    </div>
+
+    <script>
+        let authenticated = false; let authToken = null;
+        let outputFormat = 'json'; // 'json' or 'text'
+        
+        function setOutputFormat(format) {
+            outputFormat = format;
+            document.getElementById('json-toggle').classList.remove('active');
+            document.getElementById('text-toggle').classList.remove('active');
+            document.getElementById(format + '-toggle').classList.add('active');
+        }
+        
+        function formatResponseData(data, endpoint) {
+            if (outputFormat === 'text') {
+                try {
+                    const jsonData = JSON.parse(data);
+                    return formatAsText(jsonData, endpoint);
+                } catch (e) {
+                    return data; // Return as-is if not JSON
+                }
+            } else {
+                // Format JSON to show one record per line
+                try {
+                    const jsonData = JSON.parse(data);
+                    return formatJsonOnePerLine(jsonData, endpoint);
+                } catch (e) {
+                    return data; // Return as-is if not JSON
+                }
+            }
+        }
+        
+        function formatJsonOnePerLine(jsonData, endpoint) {
+            const separator = '-'.repeat(120); // 120 dashes to reach right edge of terminal
+            let output = '';
+            
+            if (endpoint === 'videos' && jsonData.videos) {
+                output = `${separator}\n{"count": ${jsonData.count}}\n${separator}\n`;
+                jsonData.videos.forEach(video => {
+                    output += JSON.stringify(video) + `\n${separator}\n`;
+                });
+            } else if (endpoint === 'list' && jsonData.files) {
+                output = `${separator}\n{"path": "${jsonData.path}"}\n${separator}\n`;
+                jsonData.files.forEach(file => {
+                    output += JSON.stringify(file) + `\n${separator}\n`;
+                });
+            } else if (endpoint === 'storage') {
+                Object.keys(jsonData).forEach(key => {
+                    output += `${separator}\n{"${key}": ${JSON.stringify(jsonData[key])}}\n`;
+                });
+                output += `${separator}\n`;
+            } else if (jsonData.items) {
+                output = `${separator}\n{"path": "${jsonData.path}", "operation": "${jsonData.operation}"}\n${separator}\n`;
+                jsonData.items.forEach(item => {
+                    output += JSON.stringify(item) + `\n${separator}\n`;
+                });
+            } else if (jsonData.permissions) {
+                output = `${separator}\n{"path": "${jsonData.path}", "operation": "${jsonData.operation}"}\n${separator}\n`;
+                output += JSON.stringify(jsonData.permissions) + `\n${separator}\n`;
+            } else {
+                // Generic formatting - one key-value per line
+                Object.keys(jsonData).forEach(key => {
+                    if (Array.isArray(jsonData[key])) {
+                        output += `${separator}\n{"${key}": "array with ${jsonData[key].length} items"}\n${separator}\n`;
+                        jsonData[key].forEach(item => {
+                            output += JSON.stringify(item) + `\n${separator}\n`;
+                        });
+                    } else {
+                        output += `${separator}\n{"${key}": ${JSON.stringify(jsonData[key])}}\n`;
+                    }
+                });
+                if (!output.endsWith(`${separator}\n`)) {
+                    output += `${separator}\n`;
+                }
+            }
+            
+            return output || JSON.stringify(jsonData, null, 2);
+        }
+        
+        function formatAsText(jsonData, endpoint) {
+            const separator = '-'.repeat(120); // 120 dashes to reach right edge of terminal
+            let textOutput = '';
+            
+            if (endpoint === 'videos' && jsonData.videos) {
+                textOutput = `${separator}\nFound ${jsonData.videos.length} videos:\n${separator}\n`;
+                jsonData.videos.forEach(video => {
+                    textOutput += `${video.name} - ${video.size} - ${video.directory}\n${separator}\n`;
+                });
+            } else if (endpoint === 'list' && jsonData.files) {
+                textOutput = `${separator}\nDirectory: ${jsonData.path}\n${separator}\n`;
+                jsonData.files.forEach(file => {
+                    textOutput += `${file.isDirectory ? '[DIR]' : '[FILE]'} ${file.name} - ${file.size}\n${separator}\n`;
+                });
+            } else if (endpoint === 'storage') {
+                textOutput = `${separator}\nStorage Info:\n`;
+                textOutput += `Total: ${(jsonData.total / (1024*1024*1024)).toFixed(2)}GB\n`;
+                textOutput += `Used: ${(jsonData.used / (1024*1024*1024)).toFixed(2)}GB\n`;
+                textOutput += `Available: ${(jsonData.available / (1024*1024*1024)).toFixed(2)}GB\n${separator}\n`;
+            } else if (endpoint === 'instructions-info') {
+                // For instructions, return the raw text content with separators
+                return `${separator}\n${jsonData}\n${separator}`;
+            } else if (jsonData.items) {
+                textOutput = `${separator}\nPath: ${jsonData.path}\nOperation: ${jsonData.operation}\n${separator}\n`;
+                jsonData.items.forEach(item => {
+                    textOutput += `${item.is_directory ? '[DIR]' : '[FILE]'} ${item.name} - ${item.size} bytes - ${item.modified}\n${separator}\n`;
+                });
+            } else if (jsonData.permissions) {
+                textOutput = `${separator}\nFile: ${jsonData.path}\nPermissions: ${jsonData.permissions.octal}\n`;
+                textOutput += `Readable: ${jsonData.permissions.readable}, Writable: ${jsonData.permissions.writable}, Executable: ${jsonData.permissions.executable}\n${separator}\n`;
+            } else if (jsonData.path && jsonData.operation) {
+                // Handle other file operations responses
+                textOutput = `${separator}\nPath: ${jsonData.path}\nOperation: ${jsonData.operation}\n`;
+                if (jsonData.is_directory !== undefined) {
+                    textOutput += `Type: ${jsonData.is_directory ? 'Directory' : 'File'}\n`;
+                    textOutput += `Size: ${jsonData.size} bytes\n`;
+                    textOutput += `Modified: ${jsonData.modified}\n`;
+                    if (jsonData.permissions) textOutput += `Permissions: ${jsonData.permissions}\n`;
+                }
+                textOutput += `${separator}\n`;
+            } else {
+                // Generic object formatting
+                textOutput = `${separator}\n`;
+                Object.keys(jsonData).forEach(key => {
+                    if (typeof jsonData[key] === 'object' && jsonData[key] !== null) {
+                        if (Array.isArray(jsonData[key])) {
+                            textOutput += `${key}: ${jsonData[key].length} items\n`;
+                        } else {
+                            textOutput += `${key}: [object]\n`;
+                        }
+                    } else {
+                        textOutput += `${key}: ${jsonData[key]}\n`;
+                    }
+                });
+                textOutput += `${separator}\n`;
+            }
+            
+            return textOutput || JSON.stringify(jsonData, null, 2);
+        }
+        
+        function formatAndLog(data) {
+            // Try to format JSON with jq
+            fetch("http://gcppftest01:9090/api/format-json", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + authToken
+                },
+                body: data
+            })
+            .then(response => response.text())
+            .then(formatted => {
+                log(formatted, "info");
+            })
+            .catch(error => {
+                // Fallback to original data if jq fails
+                log(data, "info");
+            });
+        }
+
+        function log(message, type = 'info') {
+            const terminal = document.getElementById('terminal');
+            const timestamp = new Date().toLocaleTimeString();
+            const line = document.createElement('div');
+            
+            // Convert newlines to <br> tags for HTML display
+            const formattedMessage = message.replace(/\n/g, '<br>');
+            line.innerHTML = '<span class="info">[' + timestamp + ']</span> <span class="' + type + '">' + formattedMessage + '</span>';
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+            console.log('[' + timestamp + '] ' + message);
+        }
+        
+        function debugTest() {
+            log('Debug test started...', 'info');
+            log('JavaScript is working!', 'success');
+            log('Checking form values...', 'info');
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            log('Username: ' + (username || '(empty)'), 'warning');
+            log('Password: ' + (password ? '***' : '(empty)'), 'warning');
+            log('Debug test completed', 'success');
+        }
+        
+        function authenticate() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            
+            log('=== AUTHENTICATION ATTEMPT ===', 'info');
+            
+            if (!username || !password) {
+                log('ERROR: Username and password required!', 'error');
+                return;
+            }
+            
+            log('Username: ' + username, 'info');
+            log('Password: ' + (password ? '***' : '(empty)'), 'info');
+            log('Sending request to server...', 'info');
+            
+            const url = 'http://gcppftest01:9090/api/auth';
+            const data = {
+                username: username,
+                password: password
+            };
+            
+            // Generate and display curl command
+            const curlCommand = `curl -X POST "${url}" -H "Content-Type: application/json" -d '{"username":"${username}","password":"****"}'`;
+            log('Curl Command:', 'command');
+            log(curlCommand, 'command');
+            
+            log('URL: ' + url, 'command');
+            var logData = {...data}; if (logData.password) logData.password = "****"; log("Data: " + JSON.stringify(logData, null, 2), "command");
+            
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                log('Response Status: ' + response.status, response.status === 200 ? 'success' : 'error');
+                return response.text();
+            })
+            .then(result => {
+                log('Raw Response:', 'info');
+                log(result, 'info');
+                
+                try {
+                    const json = JSON.parse(result);
+                    if (json.success) {
+                        authenticated = true; authToken = json.token;
+                        log('AUTHENTICATION SUCCESS!', 'success');
+                        log('Token: ' + json.token, 'success');
+                        document.getElementById('status').style.color = '#00ff00';
+                        document.getElementById('status').textContent = '📡 API Console (AUTHENTICATED)';
+                    } else {
+                        authenticated = false;
+                        log('AUTHENTICATION FAILED: ' + (json.message || 'Unknown error'), 'error');
+                        document.getElementById('status').style.color = '#ff0000';
+                        document.getElementById('status').textContent = '📡 API Console (AUTH FAILED)';
+                    }
+                } catch (e) {
+                    log('ERROR: Failed to parse response as JSON', 'error');
+                    log('Parse error: ' + e.message, 'error');
+                    authenticated = false;
+                }
+            })
+            .catch(error => {
+                log('NETWORK ERROR: ' + error.message, 'error');
+                log('Check if server is running on port 9090', 'warning');
+                authenticated = false;
+            });
+        }
+        
+        function clearTerminal() {
+            document.getElementById('terminal').innerHTML = 
+                '<span class="info">API Testing Console Ready</span><br>' +
+                '<span class="info">Click \'Debug Test\' to verify JavaScript is working</span><br>' +
+                '<span class="info">Then enter credentials and click \'Authenticate\'</span><br><br>';
+        }
+        
+        function callApi(endpoint) {
+            log('=== API CALL: ' + endpoint.toUpperCase() + ' ===', 'info');
+            
+            if (!authenticated) {
+                log('ERROR: Not authenticated! Click Authenticate first.', 'error');
+                return;
+            }
+            
+            const url = 'http://gcppftest01:9090/api/' + endpoint;
+            
+            // Generate and display curl command
+            const curlCommand = `curl -X GET "${url}" -H "Authorization: Bearer ****"`;
+            log('Curl Command:', 'command');
+            log(curlCommand, 'command');
+            
+            log('Calling: ' + url, 'command');
+            log('Using Bearer token from authentication', 'info');
+            
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + authToken
+                }
+            })
+            .then(response => {
+                log('Response Status: ' + response.status, response.status === 200 ? 'success' : 'error');
+                return response.text();
+            })
+            .then(result => {
+                log('Response:', 'success');
+                const formattedResult = formatResponseData(result, endpoint);
+                log(formattedResult, 'info');
+            })
+            .catch(error => {
+                log('API CALL ERROR: ' + error.message, 'error');
+            });
+        }
+        
+        function callApiWithPath(endpoint) {
+            log('=== API CALL: ' + endpoint.toUpperCase() + ' ===', 'info');
+            
+            if (!authenticated) {
+                log('ERROR: Not authenticated! Click Authenticate first.', 'error');
+                return;
+            }
+            
+            let path = '';
+            if (endpoint === 'file') {
+                path = document.getElementById('file-path').value.trim();
+            } else if (endpoint === 'download') {
+                path = document.getElementById('download-path').value.trim();
+            } else if (endpoint === 'view') {
+                path = document.getElementById('view-path').value.trim();
+            }
+            
+            if (!path) {
+                log('ERROR: Path is required for ' + endpoint + ' endpoint', 'error');
+                return;
+            }
+            
+            const url = 'http://gcppftest01:9090/api/' + endpoint + '?path=' + encodeURIComponent(path);
+            
+            // Generate and display curl command
+            const curlCommand = `curl -X GET "${url}" -H "Authorization: Bearer ****"`;
+            log('Curl Command:', 'command');
+            log(curlCommand, 'command');
+            
+            log('Calling: ' + url, 'command');
+            log('Using Bearer token from authentication', 'info');
+            
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + authToken
+                }
+            })
+            .then(response => {
+                log('Response Status: ' + response.status, response.status === 200 ? 'success' : 'error');
+                return response.text();
+            })
+            .then(result => {
+                log('Response:', 'success');
+                const formattedResult = formatResponseData(result, endpoint);
+                log(formattedResult, 'info');
+            })
+            .catch(error => {
+                log('API CALL ERROR: ' + error.message, 'error');
+            });
+        }
+        
+        function callApiWithPathAndOperation() {
+            log('=== API CALL: FILE-OPERATIONS ===', 'info');
+            
+            if (!authenticated) {
+                log('ERROR: Not authenticated! Click Authenticate first.', 'error');
+                return;
+            }
+            
+            const path = document.getElementById('operations-path').value.trim();
+            const operation = document.getElementById('operations-type').value;
+            
+            if (!path) {
+                log('ERROR: Path is required for file-operations endpoint', 'error');
+                return;
+            }
+            
+            const url = 'http://gcppftest01:9090/api/file-operations?path=' + encodeURIComponent(path) + '&operation=' + encodeURIComponent(operation);
+            
+            // Generate and display curl command
+            const curlCommand = `curl -X GET "${url}" -H "Authorization: Bearer ****"`;
+            log('Curl Command:', 'command');
+            log(curlCommand, 'command');
+            
+            log('Calling: ' + url, 'command');
+            log('Using Bearer token from authentication', 'info');
+            
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + authToken
+                }
+            })
+            .then(response => {
+                log('Response Status: ' + response.status, response.status === 200 ? 'success' : 'error');
+                return response.text();
+            })
+            .then(result => {
+                log('Response:', 'success');
+                const formattedResult = formatResponseData(result, 'file-operations');
+                log(formattedResult, 'info');
+            })
+            .catch(error => {
+                log('API CALL ERROR: ' + error.message, 'error');
+            });
+        }
+        
+        function showApiCurlCalls() {
+            log('=== ALL API CURL CALLS ===', 'info');
+            const separator = '-'.repeat(120);
+            
+            log(separator, 'info');
+            log('TERMINAL STATUS CHECK:', 'command');
+            log('curl -X GET -I http://gcppftest01:4200', 'command');
+            log('Expected Output: HTTP/1.1 200 OK\nContent-Type: text/html\nContent-Length: 5216', 'info');
+            
+            log(separator, 'info');
+            log('AUTHENTICATION:', 'command');
+            log('curl -X POST "http://gcppftest01:9090/api/auth" -H "Content-Type: application/json" -d \'{\n  "username": "your_username",\n  "password": "your_password"\n}\'', 'command');
+            
+            log(separator, 'info');
+            log('BASIC API ENDPOINTS (require Bearer token):', 'command');
+            
+            log('Videos:', 'info');
+            log('curl -X GET "http://gcppftest01:9090/api/videos" -H "Authorization: Bearer YOUR_TOKEN"', 'command');
+            
+            log('Files List:', 'info');
+            log('curl -X GET "http://gcppftest01:9090/api/list" -H "Authorization: Bearer YOUR_TOKEN"', 'command');
+            
+            log('Storage Info:', 'info');
+            log('curl -X GET "http://gcppftest01:9090/api/storage" -H "Authorization: Bearer YOUR_TOKEN"', 'command');
+            
+            log('Instructions:', 'info');
+            log('curl -X GET "http://gcppftest01:9090/api/instructions-info" -H "Authorization: Bearer YOUR_TOKEN"', 'command');
+            
+            log(separator, 'info');
+            log('PATH-BASED OPERATIONS (require Bearer token + path parameter):', 'command');
+            
+            log('File Content:', 'info');
+            log('curl -X GET "http://gcppftest01:9090/api/file?path=/full/path/to/file" -H "Authorization: Bearer YOUR_TOKEN"', 'command');
+            
+            log('Download File:', 'info');
+            log('curl -X GET "http://gcppftest01:9090/api/download?path=/full/path/to/file" -H "Authorization: Bearer YOUR_TOKEN"', 'command');
+            
+            log('View File:', 'info');
+            log('curl -X GET "http://gcppftest01:9090/api/view?path=/full/path/to/file" -H "Authorization: Bearer YOUR_TOKEN"', 'command');
+            
+            log(separator, 'info');
+            log('FILE OPERATIONS (require Bearer token + path + operation parameters):', 'command');
+            
+            log('List Directory:', 'info');
+            log('curl -X GET "http://gcppftest01:9090/api/file-operations?path=/full/path&operation=list" -H "Authorization: Bearer YOUR_TOKEN"', 'command');
+            
+            log('File/Directory Info:', 'info');
+            log('curl -X GET "http://gcppftest01:9090/api/file-operations?path=/full/path&operation=info" -H "Authorization: Bearer YOUR_TOKEN"', 'command');
+            
+            log('Show Permissions:', 'info');
+            log('curl -X GET "http://gcppftest01:9090/api/file-operations?path=/full/path&operation=permissions" -H "Authorization: Bearer YOUR_TOKEN"', 'command');
+            
+            log(separator, 'info');
+            log('NOTE: Replace YOUR_TOKEN with actual Bearer token from authentication', 'warning');
+            log('NOTE: Replace /full/path with actual file/directory paths', 'warning');
+            log(separator, 'info');
+        }
+        
+        // Test on page load
+        window.onload = function() {
+            log('Page loaded successfully', 'success');
+            log('All functions initialized', 'success');
+        };
+    </script>
+</body>
+</html>

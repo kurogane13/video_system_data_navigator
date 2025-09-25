@@ -1,0 +1,302 @@
+================================================================================
+VIDEO LIBRARY & FILE MANAGEMENT SYSTEM - SETUP GUIDE
+================================================================================
+
+OVERVIEW:
+Secure video streaming and file management system with authentication, 
+uploads, terminal access, API testing, and storage management.
+
+================================================================================
+🏗️ QUICK START
+================================================================================
+
+DIRECTORY STRUCTURE:
+/home/gus/video-system/
+├── videos/         # Video files (MP4, WebM, AVI, MOV, MKV, FLV)
+├── docs/          # Web interface files
+├── scripts/       # Python API server
+└── logs/          # System and debug logs
+
+================================================================================
+🔐 AUTHENTICATION
+================================================================================
+
+CREDENTIALS FILE: ~/.crds
+Format: username:password
+
+To change credentials:
+1. Edit: nano ~/.crds
+2. Format: newuser:newpassword
+3. No restart required
+
+SECURITY: Session tokens, encrypted passwords, protected API endpoints
+
+================================================================================
+🌐 WEB INTERFACE FEATURES
+================================================================================
+
+🎬 ADVANCED VIDEO PLAYER:
+✅ HTML5 video player with full controls (play/pause, restart, mute, fullscreen)
+✅ Comprehensive playback speed control (0.05x to 20x speeds)
+✅ Speed categories: Ultra Slow, Super Slow, Very Slow, Slow, Normal, Fast
+✅ Custom speed input with precise control (0.01x to 20x range)
+✅ Loop toggle functionality
+✅ Real-time play status with animated indicators
+✅ Welcome video modal with authentication
+
+🎵 PLAYLIST MANAGEMENT:
+✅ Create, edit, and delete custom playlists
+✅ Add videos to playlists (individual or bulk selection)
+✅ Play All functionality (first-to-last, last-to-first)
+✅ Sequential playlist playback with Next/Previous navigation
+✅ Playlist metadata refresh and management
+✅ Drag-and-drop playlist reordering
+✅ Save/undo playlist operations
+
+🔍 VIDEO SEARCH & ORGANIZATION:
+✅ Advanced video search modal with real-time filtering
+✅ Text-based video name search with Enter key support
+✅ Drag-and-drop search result reordering
+✅ Video selection system (individual/bulk operations)
+✅ Select All/Deselect All functionality
+✅ Video metadata display and thumbnail generation
+✅ Hover-to-preview video thumbnails
+
+📁 FILE EXPLORER & MANAGEMENT:
+✅ Data Navigator with breadcrumb navigation
+✅ Quick Access shortcuts (Home, Random Files, Videos)
+✅ Multi-file selection with checkboxes
+✅ File operations: create, delete, rename files and folders
+✅ Color-coded file types (directories, videos, images)
+✅ Up directory navigation and directory tree browsing
+
+⬇️ DOWNLOAD OPERATIONS:
+✅ Individual file downloads
+✅ Bulk download selected files
+✅ Download all files functionality
+✅ ZIP archive creation and download
+✅ Download progress tracking with status indicators
+
+⬆️ UPLOAD SYSTEM:
+✅ Video uploads with format validation (MP4, WebM, AVI, MOV, MKV, FLV)
+✅ General file uploads (all file types) to any directory
+✅ Dual drag-and-drop interfaces
+✅ Upload progress tracking with detailed modals
+✅ File preview before upload
+✅ Upload confirmation and cancellation options
+
+💾 STORAGE MANAGEMENT:
+✅ Real-time storage status displays across all sections
+✅ Visual storage usage bars with color indicators
+✅ Disk quota reserve configuration and management
+✅ Upload limit calculations with automatic updates
+✅ Available space monitoring and alerts
+✅ Storage refresh functionality
+
+💻 TERMINAL ACCESS:
+✅ Shell-in-a-Box integration (opens on port 4200)
+✅ Full Linux terminal access in browser
+✅ Terminal opens in dedicated new tab
+✅ Secure authenticated terminal sessions
+
+📡 API TESTING MODULE:
+✅ API Console interface (opens on port 9090)
+✅ Interactive API call testing
+✅ Pre-configured curl commands library
+✅ Authentication testing and endpoint validation
+✅ Copy-paste ready curl commands for external use
+
+🖥️ SYSTEM SPECIFICATIONS:
+✅ Linux System Specifications modal
+✅ Hardware information display
+✅ Terminal-style system monitoring
+✅ Real-time system status information
+
+🔍 LOGGING & DEBUGGING:
+✅ Debug logs viewer modal with download capability
+✅ Scroll navigation (Top/Bottom/Middle)
+✅ Real-time log monitoring and updates
+✅ Comprehensive action logging and request tracking
+✅ Error handling with detailed status messages
+
+================================================================================
+🎵 PLAYLIST SYSTEM GUIDE
+================================================================================
+
+CREATING PLAYLISTS:
+1. Click "🔍 Manage and play videos" to open video search modal
+2. Search and select videos using checkboxes
+3. Click "Create New Playlist" button
+4. Enter playlist name and save
+
+MANAGING PLAYLISTS:
+• Edit Playlist: Modify existing playlist contents
+• Delete Playlist: Remove playlists permanently
+• Show All Playlists: View all created playlists
+• Add to Playlist: Add selected videos to existing playlists
+
+PLAYLIST PLAYBACK:
+• Play All (First to Last): Sequential playback from beginning
+• Play All (Last to First): Reverse sequential playback
+• Next/Previous: Manual navigation between playlist videos
+• Auto-progression: Automatic advancement to next video
+
+PLAYLIST OPERATIONS:
+• Drag & Drop: Reorder videos within playlists
+• Bulk Add: Add all search results to playlist
+• Selective Add: Add only checked videos to playlist
+• Metadata Refresh: Update playlist video information
+• Save Changes: Persist playlist modifications
+• Undo: Revert last playlist operation
+
+================================================================================
+🚀 SYSTEM MANAGEMENT
+================================================================================
+
+START SERVICES:
+cd /home/gus/video-system/scripts && python3 auth_api_server.py &
+
+STOP SERVICES:
+pkill -f auth_api_server.py
+
+CHECK STATUS:
+ps aux | grep auth_api_server
+
+VIEW LOGS:
+tail -f /home/gus/video-system/logs/debug.log
+# Or use the UI debug log viewer
+
+================================================================================
+🔧 CONFIGURATION
+================================================================================
+
+DISK QUOTA MANAGEMENT:
+- Access via "💽 Disk quota reserve limit" buttons
+- Set reserved disk space to prevent system crashes
+- Automatic upload limit calculations
+- Persistent configuration across reboots
+- Located: /home/gus/video-system/docs/reserved_value.txt
+
+API SERVER: /home/gus/video-system/scripts/auth_api_server.py
+
+FILE PERMISSIONS:
+sudo chown -R gus:gus /home/gus/video-system/
+chmod +x /home/gus/video-system/scripts/*.py
+
+FIREWALL:
+sudo ufw allow 10000/tcp
+sudo ufw allow 9090/tcp
+
+================================================================================
+🐛 TROUBLESHOOTING
+================================================================================
+
+COMMON ISSUES:
+
+Authentication Failed:
+- Check ~/.crds file format
+- Verify credentials
+- Clear browser cache
+
+Videos Not Loading:
+- Check file permissions
+- Verify video formats (MP4, WebM, AVI, MOV, MKV, FLV)
+- Check /home/gus/video-system/videos/ directory
+
+Server Connection Issues:
+- Verify services are running
+- Check firewall settings: sudo ufw status
+- Check logs: tail -f /home/gus/video-system/logs/debug.log
+
+Upload Failures:
+- Check disk space
+- Verify upload directory permissions
+- Check storage quota settings
+
+Terminal Not Working:
+- Verify authentication
+- Check server logs
+- Ensure websocket connection
+
+API Calls Failing:
+- Check authentication headers
+- Verify endpoint URLs
+- Use API testing module for debugging
+
+Playlist Issues:
+- Refresh playlist metadata if videos not loading
+- Check video file permissions and paths
+- Use "Show All Playlists" to verify playlist exists
+- Clear browser cache if playlist operations fail
+
+Welcome Video Not Playing:
+- Ensure authentication token is valid
+- Check video file exists in ~/video-system/videos/
+- Verify API server is running on port 9090
+- Check browser console for authentication errors
+
+Search/Filter Not Working:
+- Refresh video metadata using refresh button
+- Clear search terms and try again
+- Check if videos exist in ~/video-system/videos/
+- Verify file permissions on video directory
+
+Speed Control Issues:
+- Use custom speed input for precise control
+- Reset to 1.0x (normal) speed if experiencing issues
+- Check browser compatibility for HTML5 video
+
+DEBUG LOG ACCESS:
+- Use "🔍 View Debug Logs" button in UI
+- Or check: /home/gus/video-system/logs/debug.log
+- Real-time monitoring available in web interface
+- Download logs using download button in debug modal
+
+================================================================================
+🎯 FEATURE QUICK ACCESS GUIDE
+================================================================================
+
+🎬 VIDEO PLAYBACK & PLAYLISTS:
+• SEARCH VIDEOS: Click "🔍 Manage and play videos" to open advanced search modal
+• SPEED CONTROL: Use the detailed speed grid (0.05x to 20x) in video player
+• PLAYLISTS: Create/manage playlists with "Create New Playlist" button
+• PLAY ALL: Use "Play All" buttons for sequential playlist playback
+• LOOP/CONTROLS: Toggle loop, mute, fullscreen directly in video player
+
+📁 FILE & SYSTEM MANAGEMENT:
+• DATA NAVIGATOR: Click "📊 Data Navigator" for file system browsing
+• QUICK ACCESS: Use Home/Random Files/Videos shortcuts in file browser
+• DOWNLOADS: Select files and use bulk download operations
+• TERMINAL: Click "💻 Terminal" for Shell-in-a-Box web terminal access
+• SYSTEM SPECS: Click system info buttons for hardware details
+
+⬆️⬇️ UPLOAD & DOWNLOAD:
+• VIDEO UPLOAD: Click "🎬 Upload Videos" (MP4, WebM, AVI, MOV, MKV, FLV only)
+• GENERAL UPLOAD: Click "📁 General Upload" (all file types accepted)
+• DRAG & DROP: Use drag-and-drop on both upload interfaces
+• BULK DOWNLOADS: Select multiple files and download as ZIP archive
+
+🔧 ADVANCED TOOLS:
+• API TESTING: Click "📡 API Calls" for API console (opens port 9090)
+• DEBUG LOGS: Click "🔍 View Debug Logs" for system log monitoring
+• STORAGE QUOTAS: Click "💽 Disk quota reserve limit" for storage management
+• REFRESH DATA: Use refresh buttons to update video metadata and storage info
+
+🎮 USER INTERFACE NAVIGATION:
+• TOGGLE MODES: Use the 7 main toggle buttons (Video Catalog, Data Navigator, etc.)
+• SEARCH & FILTER: Real-time search with Enter key in video search modal
+• BULK OPERATIONS: Use Select All/Deselect All for multi-file operations
+• DRAG & DROP: Reorder search results and playlist items by dragging
+
+================================================================================
+📞 SUPPORT
+================================================================================
+
+All features are accessible through the main dashboard interface.
+Check debug logs for detailed error information.
+Use terminal access for direct system troubleshooting.
+
+System Path: /home/gus/video-system/
+API Endpoint: http://your-server:9090
+
+================================================================================
