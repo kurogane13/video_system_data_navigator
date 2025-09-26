@@ -248,6 +248,8 @@ class AuthenticatedAPIHandler(http.server.BaseHTTPRequestHandler):
                 self.handle_storage_update()
             elif path == "/api/system-specs" and self.is_authenticated():
                 self.handle_system_specs()
+            elif path == "/api/detect-os" and self.is_authenticated():
+                self.handle_detect_os()
             elif path == "/api/validate_existing_playlist" and self.is_authenticated():
                 self.handle_validate_existing_playlist()
             elif path == "/api/add_videos_to_playlist" and self.is_authenticated():
@@ -968,6 +970,34 @@ class AuthenticatedAPIHandler(http.server.BaseHTTPRequestHandler):
         except Exception as e:
             self.send_error(500, f"Error updating storage values: {str(e)}")
 
+    def handle_detect_os(self):
+        """Handle OS detection API endpoint"""
+        try:
+            os_type = "ubuntu"  # Default to ubuntu
+            
+            # Detect OS type
+            if os.path.exists('/etc/os-release'):
+                with open('/etc/os-release', 'r') as f:
+                    os_content = f.read().lower()
+                    if 'centos' in os_content or 'rhel' in os_content or 'red hat' in os_content:
+                        os_type = "centos"
+                    elif 'fedora' in os_content:
+                        os_type = "centos"  # Treat Fedora like CentOS for compatibility
+                    elif 'ubuntu' in os_content or 'debian' in os_content:
+                        os_type = "ubuntu"
+            
+            self.send_json_response({
+                "os_type": os_type,
+                "success": True
+            })
+            
+        except Exception as e:
+            self.send_json_response({
+                "os_type": "unknown",
+                "error": str(e),
+                "success": False
+            })
+
     def handle_system_specs(self):
         """Handle Linux system specifications API endpoint"""
         try:
@@ -985,15 +1015,42 @@ class AuthenticatedAPIHandler(http.server.BaseHTTPRequestHandler):
                 'inxi_output': None
             }
             
+            # Helper function for subprocess calls compatible with older Python versions
+            def run_command(cmd, timeout=None):
+                try:
+                    # Use compatible syntax for Python 3.6+ (no text parameter)
+                    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+                    # Manually decode bytes to string for compatibility
+                    result.stdout = result.stdout.decode('utf-8', errors='ignore') if result.stdout else ''
+                    result.stderr = result.stderr.decode('utf-8', errors='ignore') if result.stderr else ''
+                    return result
+                except FileNotFoundError:
+                    # Command not found, return empty result
+                    class EmptyResult:
+                        def __init__(self):
+                            self.returncode = 1
+                            self.stdout = ''
+                            self.stderr = f'Command not found: {cmd[0] if cmd else "unknown"}'
+                    return EmptyResult()
+
+            # Helper function to find command in common paths
+            def find_command(command_name):
+                common_paths = ['/usr/bin/', '/bin/', '/usr/sbin/', '/sbin/']
+                for path in common_paths:
+                    full_path = path + command_name
+                    if os.path.exists(full_path):
+                        return [full_path]
+                return [command_name]  # Fallback to original command
+
             try:
                 # First, check if inxi is available
-                inxi_check = subprocess.run(['which', 'inxi'], capture_output=True, text=True)
+                inxi_check = run_command(['which', 'inxi'])
                 if inxi_check.returncode == 0:
                     response_data['inxi_available'] = True
                     response_data['method'] = 'inxi -Fx'
                     
                     # Run inxi -Fx for comprehensive system information
-                    inxi_result = subprocess.run(['inxi', '-Fx'], capture_output=True, text=True, timeout=30)
+                    inxi_result = run_command(['inxi', '-Fx'], timeout=30)
                     if inxi_result.returncode == 0:
                         response_data['inxi_output'] = inxi_result.stdout
                         
@@ -1014,27 +1071,28 @@ class AuthenticatedAPIHandler(http.server.BaseHTTPRequestHandler):
                 # Always gather additional network information
                 try:
                     # Get network interfaces and IP addresses
-                    ip_result = subprocess.run(['ip', 'addr', 'show'], capture_output=True, text=True, timeout=10)
+                    ip_cmd = find_command('ip')
+                    ip_result = run_command(ip_cmd + ['addr', 'show'], timeout=10)
                     if ip_result.returncode == 0:
                         response_data['network']['interfaces'] = ip_result.stdout
                     
                     # Get routing table
-                    route_result = subprocess.run(['ip', 'route', 'show'], capture_output=True, text=True, timeout=10)
+                    route_result = run_command(ip_cmd + ['route', 'show'], timeout=10)
                     if route_result.returncode == 0:
                         response_data['network']['routing'] = route_result.stdout
                     
                     # Get hostname
-                    hostname_result = subprocess.run(['hostname'], capture_output=True, text=True, timeout=5)
+                    hostname_result = run_command(['hostname'], timeout=5)
                     if hostname_result.returncode == 0:
                         response_data['system']['hostname'] = hostname_result.stdout.strip()
                     
                     # Get system uptime
-                    uptime_result = subprocess.run(['uptime'], capture_output=True, text=True, timeout=5)
+                    uptime_result = run_command(['uptime'], timeout=5)
                     if uptime_result.returncode == 0:
                         response_data['system']['uptime'] = uptime_result.stdout.strip()
                     
                     # Get kernel version
-                    kernel_result = subprocess.run(['uname', '-a'], capture_output=True, text=True, timeout=5)
+                    kernel_result = run_command(['uname', '-a'], timeout=5)
                     if kernel_result.returncode == 0:
                         response_data['system']['kernel'] = kernel_result.stdout.strip()
                     
@@ -1056,12 +1114,13 @@ class AuthenticatedAPIHandler(http.server.BaseHTTPRequestHandler):
                             response_data['hardware']['cpuinfo'] = cpuinfo
                     
                     # Get disk usage
-                    df_result = subprocess.run(['df', '-h'], capture_output=True, text=True, timeout=10)
+                    df_result = run_command(['df', '-h'], timeout=10)
                     if df_result.returncode == 0:
                         response_data['memory']['disk_usage'] = df_result.stdout
                     
                     # Get network configuration details
-                    ifconfig_result = subprocess.run(['ifconfig'], capture_output=True, text=True, timeout=10)
+                    ifconfig_cmd = find_command('ifconfig')
+                    ifconfig_result = run_command(ifconfig_cmd, timeout=10)
                     if ifconfig_result.returncode == 0:
                         response_data['network']['ifconfig'] = ifconfig_result.stdout
                     

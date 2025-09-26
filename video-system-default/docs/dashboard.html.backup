@@ -10651,27 +10651,12 @@ async function downloadDebugLog() {            try {                const respon
         let fitAddon = null;
         
         // Terminal Modal Functions
-        async function openTerminalModal() {
+        function openTerminalModal() {
             console.log('Opening Shell-in-a-Box terminal');
-            
-            // Detect OS to provide better error handling
-            let osType = 'unknown';
-            try {
-                const osResponse = await fetch('/api/detect-os', {
-                    method: 'POST',
-                    headers: { ...window.authHeaders, 'Content-Type': 'application/json' }
-                });
-                if (osResponse.ok) {
-                    const osData = await osResponse.json();
-                    osType = osData.os_type || 'unknown';
-                }
-            } catch (error) {
-                console.log('OS detection failed:', error);
-            }
             
             // Open Shell-in-a-Box in a new tab
             const terminalUrl = `http://${window.location.hostname}:4200/`;
-            console.log('Opening terminal URL:', terminalUrl, '(OS:', osType + ')');
+            console.log('Opening terminal URL:', terminalUrl);
             
             // Open in new tab with specific features
             const newTab = window.open(terminalUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
@@ -10681,36 +10666,7 @@ async function downloadDebugLog() {            try {                const respon
                 newTab.focus();
                 console.log('Terminal opened successfully in new tab');
             } else {
-                console.error('Failed to open terminal window');
-                let errorMessage = `Failed to open terminal window. This could be due to:
-        
-• Popup blocker preventing new window
-• Terminal service not running on port 4200
-• Network connection issues`;
-
-                if (osType === 'centos') {
-                    errorMessage += `
-
-For CentOS/RHEL systems, try these commands:
-• Check service: sudo systemctl status shellinaboxd
-• Start service: sudo systemctl start shellinaboxd  
-• Enable service: sudo systemctl enable shellinaboxd
-• Check port: sudo netstat -tlnp | grep :4200
-• Check firewall: sudo firewall-cmd --list-ports | grep 4200`;
-                } else {
-                    errorMessage += `
-
-For Ubuntu/Debian systems, try these commands:
-• Check service: sudo systemctl status shellinabox
-• Start service: sudo systemctl start shellinabox
-• Enable service: sudo systemctl enable shellinabox
-• Check port: sudo netstat -tlnp | grep :4200
-• Check firewall: sudo ufw status | grep 4200`;
-                }
-                
-                alert(errorMessage);
-            }
-        }
+                    
 
         // API Modal Functions
         function openApiModal() {
@@ -10729,6 +10685,10 @@ For Ubuntu/Debian systems, try these commands:
                 console.log("API Console opened successfully in new tab");
             } else {
                 alert("Please allow popups for this site to open the API console, or manually navigate to: " + apiUrl);
+            }
+        }
+                // Fallback if popup blocked
+                alert('Please allow popups for this site to open the terminal, or manually navigate to: ' + terminalUrl);
             }
         }
 
@@ -11034,27 +10994,6 @@ For Ubuntu/Debian systems, try these commands:
             document.getElementById('system-specs-modal').style.display = 'none';
         }
         
-        // Add OS detection for system specs
-        async function detectOS() {
-            try {
-                const response = await fetch('/api/detect-os', {
-                    method: 'POST',
-                    headers: {
-                        ...window.authHeaders,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (response.ok) {
-                    const osData = await response.json();
-                    return osData.os_type || 'unknown';
-                }
-            } catch (error) {
-                console.log('OS detection failed, assuming Ubuntu');
-            }
-            return 'ubuntu'; // default fallback
-        }
-
         function displaySystemSpecs(data) {
             const terminal = document.getElementById('system-specs-terminal');
             let output = '';

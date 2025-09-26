@@ -1,4 +1,0 @@
-  File "scripts/auth_api_server.py", line 633
-    f"curl -X GET "http://localhost:9090/api/view?path={file_path}" -H 'Authorization: Bearer TOKEN'"
-                   ^
-SyntaxError: invalid syntax

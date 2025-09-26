@@ -606,6 +606,8 @@ echo
 update_username_in_file "$DASHBOARD_FILE" "Dashboard HTML"
 update_username_in_file "$API_CONSOLE_FILE" "API Console HTML"
 update_username_in_file "$AUTH_SERVER_FILE" "Authentication Server"
+update_username_in_file "$BASE_DIR/scripts/debug_logger.py" "Debug Logger Script"
+update_username_in_file "$BASE_DIR/scripts/log_wrapper.py" "Log Wrapper Script"
 
 echo
 
@@ -667,38 +669,61 @@ echo
 print_header "STEP 5: WEB TERMINAL INSTALLATION"
 
 print_step "Installing shellinabox for web terminal access on port 4200..."
-echo -e "${YELLOW}This will install the web-based terminal console${NC}"
-echo -e "${YELLOW}Do you want to install shellinabox? (y/N)${NC}"
-read -p "Install shellinabox? " -n 1 -r
-echo
 
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+# Check if shellinabox is already installed
+if command -v shellinaboxd &> /dev/null; then
+    print_success "Shellinabox already installed"
+else
+    print_info "Installing shellinabox and net-tools automatically..."
     if command -v apt-get &> /dev/null; then
         print_info "Installing via apt-get..."
-        sudo apt-get update && sudo apt-get install -y shellinabox
+        sudo apt-get update && sudo apt-get install -y shellinabox net-tools
     elif command -v yum &> /dev/null; then
+        print_info "Installing EPEL repository for CentOS/RHEL..."
+        sudo yum install -y epel-release
         print_info "Installing via yum..."
-        sudo yum install -y shellinabox
+        sudo yum install -y shellinabox net-tools
     elif command -v dnf &> /dev/null; then
+        print_info "Installing EPEL repository for CentOS/RHEL..."
+        sudo dnf install -y epel-release  
         print_info "Installing via dnf..."
-        sudo dnf install -y shellinabox
+        sudo dnf install -y shellinabox net-tools
     elif command -v pacman &> /dev/null; then
         print_info "Installing via pacman..."
-        sudo pacman -S shellinabox
+        sudo pacman -S shellinabox net-tools
     else
         print_error "Package manager not found. Please install shellinabox manually"
     fi
     
     # Configure shellinabox to run on port 4200
     print_step "Configuring shellinabox service..."
-    sudo systemctl enable shellinabox
     
-    # Update shellinabox configuration for port 4200
-    if [[ -f /etc/default/shellinabox ]]; then
-        sudo sed -i 's/SHELLINABOX_PORT=.*/SHELLINABOX_PORT=4200/' /etc/default/shellinabox
+    # Configure for different distributions
+    if command -v yum &> /dev/null || command -v dnf &> /dev/null; then
+        # CentOS/RHEL configuration
+        print_info "Configuring shellinabox for CentOS/RHEL..."
+        
+        sudo tee /etc/sysconfig/shellinaboxd > /dev/null << 'EOF'
+# shellinabox daemon configuration  
+USER=nobody
+GROUP=nobody
+CERTDIR=/var/lib/shellinabox
+PORT=4200
+OPTS="--no-beep --disable-ssl -t"
+EOF
+        
+        print_info "Created /etc/sysconfig/shellinaboxd configuration"
+        SERVICE_NAME="shellinaboxd"
+    else
+        # Ubuntu/Debian configuration
+        if [[ -f /etc/default/shellinabox ]]; then
+            sudo sed -i 's/SHELLINABOX_PORT=.*/SHELLINABOX_PORT=4200/' /etc/default/shellinabox
+        fi
+        SERVICE_NAME="shellinabox"
     fi
     
-    sudo systemctl start shellinabox
+    sudo systemctl enable "$SERVICE_NAME"
+    sudo systemctl start "$SERVICE_NAME"
     print_success "Shellinabox installed and configured on port 4200"
     
     # Configure shellinabox for HTTP access (disable SSL)
@@ -716,8 +741,8 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
         fi
         
         # Restart shellinabox to apply HTTP configuration
-        print_info "Restarting shellinabox to enable HTTP access..."
-        sudo systemctl restart shellinabox
+        print_info "Restarting $SERVICE_NAME to enable HTTP access..."
+        sudo systemctl restart "$SERVICE_NAME"
         sleep 2
         
         # Verify HTTP access is working
@@ -731,14 +756,38 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     else
         print_warning "Shellinabox config file not found, HTTP configuration skipped"
     fi
-else
-    print_info "Skipping shellinabox installation"
 fi
 
 echo
 
-# Step 6: Server Validation
-print_header "STEP 6: SYSTEM VALIDATION"
+# Step 6: Create Required Directories
+print_header "STEP 6: DIRECTORY SETUP"
+
+print_step "Creating random_files directory if needed..."
+if [[ -d "$USER_HOME/random_files" ]]; then
+    print_success "~/random_files directory already exists"
+else
+    print_info "Creating ~/random_files directory..."
+    mkdir -p "$USER_HOME/random_files"
+    chmod 755 "$USER_HOME/random_files"
+    print_success "✅ ~/random_files directory created"
+fi
+
+# Create logs directory if needed
+print_step "Creating logs directory if needed..."
+if [[ -d "$USER_HOME/video-system/logs" ]]; then
+    print_success "~/video-system/logs directory already exists"
+else
+    print_info "Creating ~/video-system/logs directory..."
+    mkdir -p "$USER_HOME/video-system/logs"
+    chmod 755 "$USER_HOME/video-system/logs"
+    print_success "✅ ~/video-system/logs directory created"
+fi
+
+echo
+
+# Step 7: Server Validation
+print_header "STEP 7: SYSTEM VALIDATION"
 
 # Check if port 9090 is already in use
 print_step "Checking port 9090 availability..."
@@ -3079,6 +3128,8 @@ detect_os() {
     fi
 }
 
+# Note: Dashboard CentOS compatibility is handled by the Python API server
+
 # Function to create video system credentials on remote system
 create_video_system_credentials() {
     print_header "VIDEO SYSTEM CREDENTIALS SETUP"
@@ -3279,15 +3330,149 @@ configure_firewall() {
     esac
 }
 
+# Function to install and configure shellinabox
+install_shellinabox() {
+    print_step "Installing shellinabox for web terminal access on port 4200..."
+    
+    # Check if shellinabox is already installed
+    if command -v shellinaboxd &> /dev/null; then
+        print_success "Shellinabox already installed"
+    else
+        print_info "Installing shellinabox automatically..."
+        
+        if [[ "$OS_TYPE" == "ubuntu" ]]; then
+            # Ubuntu/Debian installation
+            if sudo apt-get update && sudo apt-get install -y shellinabox net-tools; then
+                print_success "Shellinabox and net-tools installed via apt-get"
+            else
+                print_error "Failed to install shellinabox and net-tools via apt-get"
+                return 1
+            fi
+        elif [[ "$OS_TYPE" == "centos" ]]; then
+            # CentOS/RHEL installation - need EPEL repository
+            print_info "Installing EPEL repository for CentOS/RHEL..."
+            if command -v yum &> /dev/null; then
+                # Install EPEL repository first (required for shellinabox)
+                sudo yum install -y epel-release
+                print_info "Installing shellinabox and net-tools from EPEL..."
+                if sudo yum install -y shellinabox net-tools; then
+                    print_success "Shellinabox and net-tools installed via yum"
+                else
+                    print_error "Failed to install shellinabox and net-tools via yum"
+                    return 1
+                fi
+            elif command -v dnf &> /dev/null; then
+                # Install EPEL repository first
+                sudo dnf install -y epel-release
+                if sudo dnf install -y shellinabox net-tools; then
+                    print_success "Shellinabox and net-tools installed via dnf"
+                else
+                    print_error "Failed to install shellinabox and net-tools via dnf"
+                    return 1
+                fi
+            else
+                print_error "No package manager found for CentOS/RHEL"
+                return 1
+            fi
+        fi
+    fi
+    
+    # Configure shellinabox service
+    print_step "Configuring shellinabox service..."
+    sudo systemctl enable shellinabox
+    
+    # Configure shellinabox for different distributions
+    if [[ "$OS_TYPE" == "ubuntu" ]]; then
+        # Ubuntu/Debian configuration
+        CONFIG_FILE="/etc/default/shellinabox"
+        if [[ -f "$CONFIG_FILE" ]]; then
+            sudo sed -i "s/SHELLINABOX_PORT=.*/SHELLINABOX_PORT=4200/" "$CONFIG_FILE"
+            print_info "Updated shellinabox port to 4200 (Ubuntu)"
+        fi
+    elif [[ "$OS_TYPE" == "centos" ]]; then
+        # CentOS/RHEL configuration - uses sysconfig file
+        print_info "Configuring shellinabox for CentOS/RHEL..."
+        
+        # Create proper sysconfig configuration for shellinaboxd
+        sudo tee /etc/sysconfig/shellinaboxd > /dev/null << 'EOF'
+# shellinabox daemon configuration  
+USER=nobody
+GROUP=nobody
+CERTDIR=/var/lib/shellinabox
+PORT=4200
+OPTS="--no-beep --disable-ssl -t"
+EOF
+        
+        print_info "Created /etc/sysconfig/shellinaboxd configuration"
+        sudo systemctl daemon-reload
+    fi
+    
+    # Configure shellinabox for HTTP access (disable SSL)
+    print_step "Configuring shellinabox for HTTP access..."
+    CONFIG_FILE="/etc/default/shellinabox"
+    if [[ -f "$CONFIG_FILE" ]]; then
+        # Check if SHELLINABOX_ARGS already exists
+        if grep -q "^SHELLINABOX_ARGS=" "$CONFIG_FILE"; then
+            # Update existing SHELLINABOX_ARGS line
+            sudo sed -i "s/^SHELLINABOX_ARGS=.*/SHELLINABOX_ARGS=\"--no-beep --disable-ssl\"/" "$CONFIG_FILE"
+            print_info "Updated existing SHELLINABOX_ARGS with --disable-ssl"
+        else
+            # Add new SHELLINABOX_ARGS line
+            echo "SHELLINABOX_ARGS=\"--no-beep --disable-ssl\"" | sudo tee -a "$CONFIG_FILE" >/dev/null
+            print_info "Added SHELLINABOX_ARGS with --disable-ssl"
+        fi
+    fi
+    
+    # Start shellinabox service (different service names for different distros)
+    print_step "Starting shellinabox service..."
+    
+    if [[ "$OS_TYPE" == "centos" ]]; then
+        SERVICE_NAME="shellinaboxd"
+    else
+        SERVICE_NAME="shellinabox"
+    fi
+    
+    print_info "Enabling $SERVICE_NAME service..."
+    sudo systemctl enable "$SERVICE_NAME"
+    
+    if sudo systemctl start "$SERVICE_NAME"; then
+        print_success "Shellinabox service started successfully"
+    else
+        print_error "Failed to start $SERVICE_NAME service"
+        return 1
+    fi
+    
+    # Wait and restart to apply configuration
+    sleep 2
+    print_info "Restarting $SERVICE_NAME to apply configuration..."
+    sudo systemctl restart "$SERVICE_NAME"
+    sleep 2
+    
+    # Verify shellinabox is running
+    if systemctl is-active --quiet "$SERVICE_NAME"; then
+        print_success "✅ Shellinabox service is active and running"
+        print_info "Web terminal accessible at: http://\$REMOTE_IP:4200"
+    else
+        print_warning "⚠️  Shellinabox service may not be running properly"
+    fi
+    
+    return 0
+}
+
 # Detect operating system
 detect_os
 echo
+
+# Note: Dashboard updates for CentOS compatibility are handled during file configuration below
 
 # Create video system credentials
 create_video_system_credentials
 
 # Configure firewall for video system
 configure_firewall
+
+# Install and configure shellinabox for web terminal
+install_shellinabox
 
 # Step 1: Verify video-system-default directory exists
 if [[ ! -d ~/video-system-default ]]; then
@@ -3399,7 +3584,15 @@ EOF
         sed -i "s|/home/gus/video-system/logs|$REMOTE_USER_HOME/video-system/logs|g" ~/video-system/scripts/auth_api_server.py
         sed -i "s|/home/gus/|$REMOTE_USER_HOME/|g" ~/video-system/scripts/auth_api_server.py
         
+        # Update debug_logger.py paths
+        sed -i "s|/home/gus/|$REMOTE_USER_HOME/|g" ~/video-system/scripts/debug_logger.py
+        
+        # Update log_wrapper.py paths  
+        sed -i "s|/home/gus/|$REMOTE_USER_HOME/|g" ~/video-system/scripts/log_wrapper.py
+        
         print_success "✅ auth_api_server.py updated with IP and paths"
+        print_success "✅ debug_logger.py updated with paths"
+        print_success "✅ log_wrapper.py updated with paths"
         
         # Verify the video path was replaced
         if grep -q "$REMOTE_USER_HOME" ~/video-system/scripts/auth_api_server.py; then
@@ -3429,6 +3622,15 @@ EOF
         print_info "Updating dashboard.html with correct IP..."
         sed -i "s/gcppftest01/$REMOTE_IP/g" ~/video-system/docs/dashboard.html
         print_success "✅ dashboard.html updated with IP"
+        
+        # Dashboard is already cross-distribution compatible
+        if [[ "$OS_TYPE" == "centos" ]]; then
+            print_info "Dashboard configured for CentOS/RHEL compatibility"
+        else
+            print_info "Dashboard configured for Ubuntu/Debian compatibility"
+        fi
+        
+        print_success "✅ dashboard.html updated with IP and OS compatibility"
     else
         print_error "dashboard.html not found"
     fi
@@ -3453,15 +3655,30 @@ EOF
     
 print_success "✅ IP addresses configured for: $REMOTE_IP"
 
-# Step 4: Create random_files directory
-print_step "Creating random_files directory..."
-mkdir -p ~/random_files
-print_success "✅ ~/random_files directory created"
+# Step 4: Create required directories
+print_step "Creating required directories..."
 
-# Create logs directory if it doesn'"'"'t exist
-print_step "Creating logs directory..."
-mkdir -p ~/video-system/logs
-print_success "✅ ~/video-system/logs directory created"
+# Create random_files directory if needed
+print_step "Checking random_files directory..."
+if [[ -d ~/random_files ]]; then
+    print_success "~/random_files directory already exists"
+else
+    print_info "Creating ~/random_files directory..."
+    mkdir -p ~/random_files
+    chmod 755 ~/random_files
+    print_success "✅ ~/random_files directory created"
+fi
+
+# Create logs directory if needed
+print_step "Checking logs directory..."
+if [[ -d ~/video-system/logs ]]; then
+    print_success "~/video-system/logs directory already exists"
+else
+    print_info "Creating ~/video-system/logs directory..."
+    mkdir -p ~/video-system/logs
+    chmod 755 ~/video-system/logs
+    print_success "✅ ~/video-system/logs directory created"
+fi
 
 # Step 5: Set proper permissions
 print_step "Setting proper permissions..."
