@@ -13,6 +13,10 @@ MAGENTA='\033[1;35m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
+# Global variables for OS detection
+OS_TYPE=""
+FIREWALL_TYPE=""
+
 # Connection credentials file
 CRDS_FILE="$HOME/.setup_system_remote_crds"
 
@@ -64,6 +68,269 @@ print_debug() {
 print_double_separator() {
     echo -e "${MAGENTA}================================================================${NC}"
     echo -e "${CYAN}================================================================${NC}"
+}
+
+# Function to detect operating system
+detect_os() {
+    print_info "Detecting operating system..."
+    
+    if [[ -f /etc/os-release ]]; then
+        source /etc/os-release
+        case "$ID" in
+            ubuntu|debian)
+                OS_TYPE="ubuntu"
+                FIREWALL_TYPE="ufw"
+                print_success "Detected: Ubuntu/Debian system"
+                ;;
+            centos|rhel|fedora|rocky|alma)
+                OS_TYPE="centos"
+                FIREWALL_TYPE="firewalld"
+                print_success "Detected: CentOS/RHEL/Fedora system"
+                ;;
+            *)
+                print_warning "Unknown distribution: $ID, defaulting to Ubuntu"
+                OS_TYPE="ubuntu"
+                FIREWALL_TYPE="ufw"
+                ;;
+        esac
+    else
+        print_warning "Cannot detect OS, defaulting to Ubuntu"
+        OS_TYPE="ubuntu"
+        FIREWALL_TYPE="ufw"
+    fi
+}
+
+# Function to configure firewall for Ubuntu/Debian
+configure_ubuntu_firewall() {
+    print_info "Configuring UFW firewall for Ubuntu..."
+    
+    # Check if UFW is installed
+    if ! command -v ufw &> /dev/null; then
+        print_error "UFW is not installed. Installing..."
+        if ! sudo apt-get update && sudo apt-get install -y ufw; then
+            print_error "Failed to install UFW"
+            return 1
+        fi
+    fi
+    
+    # Enable UFW if not already enabled
+    if ! sudo ufw status | grep -q "Status: active"; then
+        print_info "Enabling UFW..."
+        sudo ufw --force enable
+    fi
+    
+    # Open ports
+    print_info "Opening port 9090 (API Server)..."
+    if sudo ufw allow 9090/tcp; then
+        print_success "Port 9090/tcp opened"
+    else
+        print_error "Failed to open port 9090/tcp"
+        return 1
+    fi
+    
+    print_info "Opening port 4200 (Terminal Access)..."
+    if sudo ufw allow 4200/tcp; then
+        print_success "Port 4200/tcp opened"
+    else
+        print_error "Failed to open port 4200/tcp"
+        return 1
+    fi
+    
+    print_success "UFW firewall configured successfully"
+    return 0
+}
+
+# Function to configure firewall for CentOS/RHEL
+configure_centos_firewall() {
+    print_info "Configuring firewall for CentOS/RHEL..."
+    
+    # Detect which firewall system is in use
+    if systemctl is-active --quiet firewalld; then
+        FIREWALL_TYPE="firewalld"
+        print_info "Using firewalld"
+    elif systemctl list-units --full -all | grep -Fq "iptables.service"; then
+        FIREWALL_TYPE="iptables"
+        print_info "Using iptables"
+    else
+        print_warning "No firewall service detected, attempting to use firewalld"
+        FIREWALL_TYPE="firewalld"
+    fi
+    
+    if [[ "$FIREWALL_TYPE" == "firewalld" ]]; then
+        configure_firewalld
+    else
+        configure_iptables
+    fi
+}
+
+# Function to configure firewalld
+configure_firewalld() {
+    print_info "Configuring firewalld..."
+    
+    # Check if firewalld is installed
+    if ! command -v firewall-cmd &> /dev/null; then
+        print_error "firewalld is not installed. Installing..."
+        if ! sudo yum install -y firewalld; then
+            print_error "Failed to install firewalld"
+            return 1
+        fi
+    fi
+    
+    # Start firewalld if not running
+    if ! systemctl is-active --quiet firewalld; then
+        print_info "Starting firewalld service..."
+        sudo systemctl start firewalld
+        sudo systemctl enable firewalld
+    fi
+    
+    # Open ports
+    print_info "Opening port 9090/tcp (API Server)..."
+    if sudo firewall-cmd --permanent --add-port=9090/tcp; then
+        print_success "Port 9090/tcp added to permanent rules"
+    else
+        print_error "Failed to add port 9090/tcp"
+        return 1
+    fi
+    
+    print_info "Opening port 4200/tcp (Terminal Access)..."
+    if sudo firewall-cmd --permanent --add-port=4200/tcp; then
+        print_success "Port 4200/tcp added to permanent rules"
+    else
+        print_error "Failed to add port 4200/tcp"
+        return 1
+    fi
+    
+    # Reload firewall
+    print_info "Reloading firewall to apply changes..."
+    if sudo firewall-cmd --reload; then
+        print_success "Firewall rules reloaded successfully"
+    else
+        print_error "Failed to reload firewall rules"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Function to configure iptables
+configure_iptables() {
+    print_info "Configuring iptables..."
+    
+    # Check if iptables is installed
+    if ! command -v iptables &> /dev/null; then
+        print_error "iptables is not installed"
+        return 1
+    fi
+    
+    # Open ports
+    print_info "Opening port 9090/tcp (API Server)..."
+    if sudo iptables -I INPUT -p tcp --dport 9090 -j ACCEPT; then
+        print_success "Port 9090/tcp opened with iptables"
+    else
+        print_error "Failed to open port 9090/tcp with iptables"
+        return 1
+    fi
+    
+    print_info "Opening port 4200/tcp (Terminal Access)..."
+    if sudo iptables -I INPUT -p tcp --dport 4200 -j ACCEPT; then
+        print_success "Port 4200/tcp opened with iptables"
+    else
+        print_error "Failed to open port 4200/tcp with iptables"
+        return 1
+    fi
+    
+    # Save iptables rules
+    print_info "Saving iptables rules..."
+    if command -v iptables-save &> /dev/null; then
+        sudo iptables-save > /etc/sysconfig/iptables 2>/dev/null || true
+        print_success "iptables rules saved"
+    else
+        print_warning "Could not save iptables rules automatically"
+    fi
+    
+    return 0
+}
+
+# Function to configure firewall based on OS
+configure_firewall() {
+    print_step "Configuring firewall for video system ports..."
+    
+    case "$OS_TYPE" in
+        "ubuntu")
+            configure_ubuntu_firewall
+            ;;
+        "centos")
+            configure_centos_firewall
+            ;;
+        *)
+            print_error "Unsupported OS type: $OS_TYPE"
+            return 1
+            ;;
+    esac
+}
+
+# Function to create video system credentials
+create_video_system_credentials() {
+    print_header "VIDEO SYSTEM CREDENTIALS SETUP"
+    
+    print_info "Setting up authentication credentials for the video system"
+    print_info "These credentials will be used to login to the web interface"
+    echo
+    
+    local username=""
+    local password=""
+    local confirm_password=""
+    
+    # Get username
+    while [[ -z "$username" ]]; do
+        echo -e "${CYAN}Enter video system username:${NC}"
+        read -p "> " username
+        
+        if [[ -z "$username" ]]; then
+            print_error "Username cannot be empty"
+        elif [[ "$username" =~ [[:space:]] ]]; then
+            print_error "Username cannot contain spaces"
+            username=""
+        elif [[ "$username" =~ : ]]; then
+            print_error "Username cannot contain colon (:) character"
+            username=""
+        fi
+    done
+    
+    # Get password
+    while [[ -z "$password" ]]; do
+        echo -e "${CYAN}Enter video system password:${NC}"
+        read -s -p "> " password
+        echo
+        
+        if [[ -z "$password" ]]; then
+            print_error "Password cannot be empty"
+        elif [[ "$password" =~ : ]]; then
+            print_error "Password cannot contain colon (:) character"
+            password=""
+        fi
+    done
+    
+    # Confirm password
+    while [[ "$password" != "$confirm_password" ]]; do
+        echo -e "${CYAN}Confirm password:${NC}"
+        read -s -p "> " confirm_password
+        echo
+        
+        if [[ "$password" != "$confirm_password" ]]; then
+            print_error "Passwords do not match. Please try again."
+        fi
+    done
+    
+    # Create credentials file
+    local crds_file="$HOME/.crds"
+    echo "${username}:${password}" > "$crds_file"
+    chmod 600 "$crds_file"
+    
+    print_success "Credentials saved to $crds_file"
+    print_info "Username: $username"
+    print_info "Password: [hidden]"
+    echo
 }
 
 # Function to show main menu
@@ -175,6 +442,13 @@ restore_to_default() {
 # Function to setup new system
 setup_new_system() {
     print_header "SETUP NEW SYSTEM"
+    
+    # Detect operating system
+    detect_os
+    echo
+    
+    # Create video system credentials
+    create_video_system_credentials
     
     # Get current user home directory
     USER_HOME=$(echo $HOME)
@@ -821,9 +1095,31 @@ else
 fi
 
     echo
+    
+    # Configure firewall
+    if configure_firewall; then
+        print_success "Firewall configured successfully"
+        echo
+        print_info "Ports opened:"
+        print_info "• Port 9090 (Video System API)"
+        print_info "• Port 4200 (Terminal Access)"
+        echo
+    else
+        print_warning "Firewall configuration failed or was skipped"
+        print_info "You may need to manually open ports 9090 and 4200"
+        echo
+    fi
+
+    echo
     print_separator
     echo -e "${WHITE}Setup completed successfully! 🎉${NC}"
     print_separator
+    echo
+    print_info "Your video system is now accessible at:"
+    echo -e "   ${WHITE}• Web Interface:${NC} http://$TARGET_IP:9090"
+    echo -e "   ${WHITE}• Terminal Access:${NC} http://$TARGET_IP:4200"
+    echo
+    print_info "Use your configured credentials to login"
     echo
     echo -e "${YELLOW}Press any key to return to main menu...${NC}"
     read -n 1 -s
@@ -2620,18 +2916,84 @@ except:
         return
     fi
     
-    # Step 2: Run remote setup assistant
+    # Step 2: Get video system credentials for remote setup
+    print_step "Setting up video system credentials for remote server..."
+    echo
+    
+    local video_username=""
+    local video_password=""
+    
+    # Get username
+    while [[ -z "$video_username" ]]; do
+        echo -e "${CYAN}Enter video system username for remote server:${NC}"
+        read -p "> " video_username
+        
+        if [[ -z "$video_username" ]]; then
+            print_error "Username cannot be empty"
+        elif [[ "$video_username" =~ [[:space:]] ]]; then
+            print_error "Username cannot contain spaces"
+            video_username=""
+        elif [[ "$video_username" =~ : ]]; then
+            print_error "Username cannot contain colon (:) character"
+            video_username=""
+        fi
+    done
+    
+    # Get password
+    while [[ -z "$video_password" ]]; do
+        echo -e "${CYAN}Enter video system password for remote server:${NC}"
+        read -s -p "> " video_password
+        echo
+        
+        if [[ -z "$video_password" ]]; then
+            print_error "Password cannot be empty"
+        elif [[ "$video_password" =~ : ]]; then
+            print_error "Password cannot contain colon (:) character"
+            video_password=""
+        fi
+    done
+    
+    # Confirm password
+    local confirm_password=""
+    while [[ "$video_password" != "$confirm_password" ]]; do
+        echo -e "${CYAN}Confirm password:${NC}"
+        read -s -p "> " confirm_password
+        echo
+        
+        if [[ "$video_password" != "$confirm_password" ]]; then
+            print_error "Passwords do not match. Please try again."
+        fi
+    done
+    
+    print_success "Video system credentials configured"
+    print_info "Username: $video_username"
+    print_info "Password: [hidden]"
+    echo
+    
+    # Step 3: Run remote setup assistant
     print_step "Launching remote setup assistant..."
     echo
     
     local remote_setup_script='
 #!/bin/bash
 
-# Get the remote IP from command line argument
+# Get arguments from command line
 REMOTE_IP="$1"
+VIDEO_USERNAME="$2"
+VIDEO_PASSWORD="$3"
 
 if [[ -z "$REMOTE_IP" ]]; then
     echo "Error: No remote IP provided"
+    exit 1
+fi
+
+if [[ -z "$VIDEO_USERNAME" ]]; then
+    echo "Error: No video system username provided"
+    exit 1
+fi
+
+if [[ -z "$VIDEO_PASSWORD" ]]; then
+    echo "Error: No video system password provided"
     exit 1
 fi
 
@@ -2672,12 +3034,260 @@ print_separator() {
     echo -e "${CYAN}================================================================${NC}"
 }
 
+print_header() {
+    echo
+    print_separator
+    echo -e "${WHITE}$1${NC}"
+    print_separator
+    echo
+}
+
 echo
 print_separator
 echo -e "${WHITE}${BOLD}           REMOTE VIDEO SYSTEM SETUP ASSISTANT${NC}"
 echo -e "${CYAN}                 Automated Configuration${NC}"
 print_separator
 echo
+
+# Detect operating system on remote system
+detect_os() {
+    print_info "Detecting operating system..."
+    
+    if [[ -f /etc/os-release ]]; then
+        source /etc/os-release
+        case "$ID" in
+            ubuntu|debian)
+                OS_TYPE="ubuntu"
+                FIREWALL_TYPE="ufw"
+                print_success "Detected: Ubuntu/Debian system"
+                ;;
+            centos|rhel|fedora|rocky|alma)
+                OS_TYPE="centos"
+                FIREWALL_TYPE="firewalld"
+                print_success "Detected: CentOS/RHEL/Fedora system"
+                ;;
+            *)
+                print_warning "Unknown distribution: $ID, defaulting to Ubuntu"
+                OS_TYPE="ubuntu"
+                FIREWALL_TYPE="ufw"
+                ;;
+        esac
+    else
+        print_warning "Cannot detect OS, defaulting to Ubuntu"
+        OS_TYPE="ubuntu"
+        FIREWALL_TYPE="ufw"
+    fi
+}
+
+# Function to create video system credentials on remote system
+create_video_system_credentials() {
+    print_header "VIDEO SYSTEM CREDENTIALS SETUP"
+    
+    print_info "Setting up authentication credentials for the video system"
+    print_info "These credentials will be used to login to the web interface"
+    echo
+    
+    # Validate username
+    if [[ "$VIDEO_USERNAME" =~ [[:space:]] ]]; then
+        print_error "Username cannot contain spaces"
+        exit 1
+    elif [[ "$VIDEO_USERNAME" =~ : ]]; then
+        print_error "Username cannot contain colon (:) character"
+        exit 1
+    fi
+    
+    # Validate password
+    if [[ "$VIDEO_PASSWORD" =~ : ]]; then
+        print_error "Password cannot contain colon (:) character"
+        exit 1
+    fi
+    
+    # Create credentials file
+    local crds_file="$HOME/.crds"
+    echo "${VIDEO_USERNAME}:${VIDEO_PASSWORD}" > "$crds_file"
+    chmod 600 "$crds_file"
+    
+    print_success "Credentials saved to $crds_file"
+    print_info "Username: $VIDEO_USERNAME"
+    print_info "Password: [hidden]"
+    echo
+}
+
+# Function to configure firewall for Ubuntu/Debian
+configure_ubuntu_firewall() {
+    print_info "Configuring UFW firewall for Ubuntu..."
+    
+    # Check if UFW is installed
+    if ! command -v ufw &> /dev/null; then
+        print_error "UFW is not installed. Installing..."
+        if ! sudo apt-get update && sudo apt-get install -y ufw; then
+            print_error "Failed to install UFW"
+            return 1
+        fi
+    fi
+    
+    # Enable UFW if not already enabled
+    if ! sudo ufw status | grep -q "Status: active"; then
+        print_info "Enabling UFW..."
+        sudo ufw --force enable
+    fi
+    
+    # Open ports
+    print_info "Opening port 9090 (API Server)..."
+    if sudo ufw allow 9090/tcp; then
+        print_success "Port 9090/tcp opened"
+    else
+        print_error "Failed to open port 9090/tcp"
+        return 1
+    fi
+    
+    print_info "Opening port 4200 (Terminal Access)..."
+    if sudo ufw allow 4200/tcp; then
+        print_success "Port 4200/tcp opened"
+    else
+        print_error "Failed to open port 4200/tcp"
+        return 1
+    fi
+    
+    print_success "UFW firewall configured successfully"
+    return 0
+}
+
+# Function to configure firewalld
+configure_firewalld() {
+    print_info "Configuring firewalld..."
+    
+    # Check if firewalld is installed
+    if ! command -v firewall-cmd &> /dev/null; then
+        print_error "firewalld is not installed. Installing..."
+        if ! sudo yum install -y firewalld; then
+            print_error "Failed to install firewalld"
+            return 1
+        fi
+    fi
+    
+    # Start firewalld if not running
+    if ! systemctl is-active --quiet firewalld; then
+        print_info "Starting firewalld service..."
+        sudo systemctl start firewalld
+        sudo systemctl enable firewalld
+    fi
+    
+    # Open ports
+    print_info "Opening port 9090/tcp (API Server)..."
+    if sudo firewall-cmd --permanent --add-port=9090/tcp; then
+        print_success "Port 9090/tcp added to permanent rules"
+    else
+        print_error "Failed to add port 9090/tcp"
+        return 1
+    fi
+    
+    print_info "Opening port 4200/tcp (Terminal Access)..."
+    if sudo firewall-cmd --permanent --add-port=4200/tcp; then
+        print_success "Port 4200/tcp added to permanent rules"
+    else
+        print_error "Failed to add port 4200/tcp"
+        return 1
+    fi
+    
+    # Reload firewall
+    print_info "Reloading firewall to apply changes..."
+    if sudo firewall-cmd --reload; then
+        print_success "Firewall rules reloaded successfully"
+    else
+        print_error "Failed to reload firewall rules"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Function to configure iptables
+configure_iptables() {
+    print_info "Configuring iptables..."
+    
+    # Check if iptables is installed
+    if ! command -v iptables &> /dev/null; then
+        print_error "iptables is not installed"
+        return 1
+    fi
+    
+    # Open ports
+    print_info "Opening port 9090/tcp (API Server)..."
+    if sudo iptables -I INPUT -p tcp --dport 9090 -j ACCEPT; then
+        print_success "Port 9090/tcp opened with iptables"
+    else
+        print_error "Failed to open port 9090/tcp with iptables"
+        return 1
+    fi
+    
+    print_info "Opening port 4200/tcp (Terminal Access)..."
+    if sudo iptables -I INPUT -p tcp --dport 4200 -j ACCEPT; then
+        print_success "Port 4200/tcp opened with iptables"
+    else
+        print_error "Failed to open port 4200/tcp with iptables"
+        return 1
+    fi
+    
+    # Save iptables rules
+    print_info "Saving iptables rules..."
+    if command -v iptables-save &> /dev/null; then
+        sudo iptables-save > /etc/sysconfig/iptables 2>/dev/null || true
+        print_success "iptables rules saved"
+    else
+        print_warning "Could not save iptables rules automatically"
+    fi
+    
+    return 0
+}
+
+# Function to configure firewall for CentOS/RHEL
+configure_centos_firewall() {
+    print_info "Configuring firewall for CentOS/RHEL..."
+    
+    # Detect which firewall system is in use
+    if systemctl is-active --quiet firewalld; then
+        FIREWALL_TYPE="firewalld"
+        print_info "Using firewalld"
+        configure_firewalld
+    elif systemctl list-units --full -all | grep -Fq "iptables.service"; then
+        FIREWALL_TYPE="iptables"
+        print_info "Using iptables"
+        configure_iptables
+    else
+        print_warning "No firewall service detected, attempting to use firewalld"
+        FIREWALL_TYPE="firewalld"
+        configure_firewalld
+    fi
+}
+
+# Function to configure firewall based on OS
+configure_firewall() {
+    print_step "Configuring firewall for video system ports..."
+    
+    case "$OS_TYPE" in
+        "ubuntu")
+            configure_ubuntu_firewall
+            ;;
+        "centos")
+            configure_centos_firewall
+            ;;
+        *)
+            print_error "Unsupported OS type: $OS_TYPE"
+            return 1
+            ;;
+    esac
+}
+
+# Detect operating system
+detect_os
+echo
+
+# Create video system credentials
+create_video_system_credentials
+
+# Configure firewall for video system
+configure_firewall
 
 # Step 1: Verify video-system-default directory exists
 if [[ ! -d ~/video-system-default ]]; then
@@ -2983,7 +3593,7 @@ echo
 print_separator
 '
 
-    if eval "$ssh_cmd $remote_user@$remote_host 'bash -s' -- '$remote_host'" <<< "$remote_setup_script"; then
+    if eval "$ssh_cmd $remote_user@$remote_host 'bash -s' -- '$remote_host' '$video_username' '$video_password'" <<< "$remote_setup_script"; then
         echo
         print_success "✅ Remote setup completed successfully!"
     else
