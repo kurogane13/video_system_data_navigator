@@ -453,18 +453,80 @@ setup_new_system() {
     # Get current user home directory
     USER_HOME=$(echo $HOME)
     print_info "Detected user home directory: ${USER_HOME}"
-    
-    # Verify we're in the correct location
+
+    # Get the script directory to find source directories
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    SOURCE_VIDEO_SYSTEM="$SCRIPT_DIR/video-system"
+    SOURCE_VIDEO_SYSTEM_DEFAULT="$SCRIPT_DIR/video-system-default"
+
+    # Alternative source location if script is run from outside video_system_data_navigator
+    ALT_SOURCE_DIR="$USER_HOME/video_system_data_navigator"
+    ALT_SOURCE_VIDEO_SYSTEM="$ALT_SOURCE_DIR/video-system"
+    ALT_SOURCE_VIDEO_SYSTEM_DEFAULT="$ALT_SOURCE_DIR/video-system-default"
+
+    # Debug information
+    print_info "Script directory: $SCRIPT_DIR"
+    print_info "Current working directory: $(pwd)"
+    print_info "Looking for source directories at:"
+    print_info "  Primary: $SOURCE_VIDEO_SYSTEM"
+    print_info "  Alternative: $ALT_SOURCE_VIDEO_SYSTEM"
+
+    # Check if video-system directory exists, if not copy from available source
     if [[ ! -d "$USER_HOME/video-system" ]]; then
-        print_error "video-system directory not found in $USER_HOME"
-        print_error "Please run this script from a system where video-system is installed in your home directory"
-        echo
-        echo -e "${YELLOW}Press any key to return to main menu...${NC}"
-        read -n 1 -s
-        return
+        print_step "video-system directory not found in $USER_HOME"
+
+        # First, try to copy from script directory
+        if [[ -d "$SOURCE_VIDEO_SYSTEM" ]]; then
+            print_step "Copying video-system from $SOURCE_VIDEO_SYSTEM"
+            cp -r "$SOURCE_VIDEO_SYSTEM" "$USER_HOME/"
+            print_success "✅ video-system directory copied to $USER_HOME/video-system"
+        # If not found in script directory, try alternative location
+        elif [[ -d "$ALT_SOURCE_VIDEO_SYSTEM" ]]; then
+            print_step "Script not run from video_system_data_navigator directory"
+            print_step "Copying video-system from alternative location: $ALT_SOURCE_VIDEO_SYSTEM"
+            cp -r "$ALT_SOURCE_VIDEO_SYSTEM" "$USER_HOME/"
+            print_success "✅ video-system directory copied from $ALT_SOURCE_DIR to $USER_HOME/video-system"
+        else
+            print_error "Source video-system directory not found in either location:"
+            print_error "  Primary: $SOURCE_VIDEO_SYSTEM"
+            print_error "  Alternative: $ALT_SOURCE_VIDEO_SYSTEM"
+            print_error "Please ensure video-system directory exists in ~/video_system_data_navigator/"
+            echo
+            echo -e "${YELLOW}Press any key to return to main menu...${NC}"
+            read -n 1 -s
+            return
+        fi
+    else
+        print_success "Found existing video-system directory at: $USER_HOME/video-system"
     fi
-    
-    print_success "Found video-system directory at: $USER_HOME/video-system"
+
+    # Check if video-system-default directory exists, if not copy from available source
+    if [[ ! -d "$USER_HOME/video-system-default" ]]; then
+        print_step "video-system-default directory not found in $USER_HOME"
+
+        # First, try to copy from script directory
+        if [[ -d "$SOURCE_VIDEO_SYSTEM_DEFAULT" ]]; then
+            print_step "Copying video-system-default from $SOURCE_VIDEO_SYSTEM_DEFAULT"
+            cp -r "$SOURCE_VIDEO_SYSTEM_DEFAULT" "$USER_HOME/"
+            print_success "✅ video-system-default directory copied to $USER_HOME/video-system-default"
+        # If not found in script directory, try alternative location
+        elif [[ -d "$ALT_SOURCE_VIDEO_SYSTEM_DEFAULT" ]]; then
+            print_step "Copying video-system-default from alternative location: $ALT_SOURCE_VIDEO_SYSTEM_DEFAULT"
+            cp -r "$ALT_SOURCE_VIDEO_SYSTEM_DEFAULT" "$USER_HOME/"
+            print_success "✅ video-system-default directory copied from $ALT_SOURCE_DIR to $USER_HOME/video-system-default"
+        else
+            print_step "Source video-system-default not found in either location, will create from video-system"
+            if [[ -d "$USER_HOME/video-system" ]]; then
+                cp -r "$USER_HOME/video-system" "$USER_HOME/video-system-default"
+                print_success "✅ video-system-default directory created from video-system"
+            else
+                print_error "Cannot create video-system-default: no video-system directory found"
+                return
+            fi
+        fi
+    else
+        print_success "Found existing video-system-default directory at: $USER_HOME/video-system-default"
+    fi
     echo
     
     # Step 0: Create backup of original system
@@ -606,8 +668,8 @@ echo
 update_username_in_file "$DASHBOARD_FILE" "Dashboard HTML"
 update_username_in_file "$API_CONSOLE_FILE" "API Console HTML"
 update_username_in_file "$AUTH_SERVER_FILE" "Authentication Server"
-update_username_in_file "$BASE_DIR/scripts/debug_logger.py" "Debug Logger Script"
-update_username_in_file "$BASE_DIR/scripts/log_wrapper.py" "Log Wrapper Script"
+update_username_in_file "$USER_HOME/video-system/scripts/debug_logger.py" "Debug Logger Script"
+update_username_in_file "$USER_HOME/video-system/scripts/log_wrapper.py" "Log Wrapper Script"
 
 echo
 
@@ -3377,50 +3439,102 @@ install_shellinabox() {
         fi
     fi
     
-    # Configure shellinabox service
+    # Configure shellinabox service based on distribution
     print_step "Configuring shellinabox service..."
-    sudo systemctl enable shellinabox
-    
-    # Configure shellinabox for different distributions
+
     if [[ "$OS_TYPE" == "ubuntu" ]]; then
         # Ubuntu/Debian configuration
         CONFIG_FILE="/etc/default/shellinabox"
+
         if [[ -f "$CONFIG_FILE" ]]; then
-            sudo sed -i "s/SHELLINABOX_PORT=.*/SHELLINABOX_PORT=4200/" "$CONFIG_FILE"
-            print_info "Updated shellinabox port to 4200 (Ubuntu)"
+            print_step "Found existing Ubuntu shellinabox config: $CONFIG_FILE"
+
+            # Enable daemon start
+            if grep -q "^SHELLINABOX_DAEMON_START=" "$CONFIG_FILE"; then
+                sudo sed -i "s/^SHELLINABOX_DAEMON_START=.*/SHELLINABOX_DAEMON_START=1/" "$CONFIG_FILE"
+            else
+                echo "SHELLINABOX_DAEMON_START=1" | sudo tee -a "$CONFIG_FILE" >/dev/null
+            fi
+
+            # Set port
+            if grep -q "^SHELLINABOX_PORT=" "$CONFIG_FILE"; then
+                sudo sed -i "s/^SHELLINABOX_PORT=.*/SHELLINABOX_PORT=4200/" "$CONFIG_FILE"
+            else
+                echo "SHELLINABOX_PORT=4200" | sudo tee -a "$CONFIG_FILE" >/dev/null
+            fi
+
+            # Configure SHELLINABOX_ARGS
+            if grep -q "^SHELLINABOX_ARGS=" "$CONFIG_FILE"; then
+                # Check if it already has the correct configuration
+                if grep -q "SHELLINABOX_ARGS=\"--no-beep --disable-ssl\"" "$CONFIG_FILE"; then
+                    print_success "✅ SHELLINABOX_ARGS already correctly configured"
+                else
+                    sudo sed -i "s/^SHELLINABOX_ARGS=.*/SHELLINABOX_ARGS=\"--no-beep --disable-ssl\"/" "$CONFIG_FILE"
+                    print_success "✅ Updated SHELLINABOX_ARGS to: --no-beep --disable-ssl"
+                fi
+            else
+                echo 'SHELLINABOX_ARGS="--no-beep --disable-ssl"' | sudo tee -a "$CONFIG_FILE" >/dev/null
+                print_success "✅ Added SHELLINABOX_ARGS: --no-beep --disable-ssl"
+            fi
+
+            print_info "Ubuntu shellinabox configuration completed"
+        else
+            print_warning "Ubuntu config file not found: $CONFIG_FILE"
         fi
+
+        sudo systemctl enable shellinabox
+
     elif [[ "$OS_TYPE" == "centos" ]]; then
         # CentOS/RHEL configuration - uses sysconfig file
-        print_info "Configuring shellinabox for CentOS/RHEL..."
-        
-        # Create proper sysconfig configuration for shellinaboxd
-        sudo tee /etc/sysconfig/shellinaboxd > /dev/null << 'EOF'
-# shellinabox daemon configuration  
+        CONFIG_FILE="/etc/sysconfig/shellinaboxd"
+
+        print_step "Configuring shellinabox for CentOS/RHEL..."
+
+        if [[ -f "$CONFIG_FILE" ]]; then
+            print_step "Found existing CentOS shellinabox config: $CONFIG_FILE"
+
+            # Check if OPTS line already has correct configuration
+            if grep -q "OPTS=\"--no-beep --disable-ssl -t\"" "$CONFIG_FILE"; then
+                print_success "✅ OPTS already correctly configured"
+            else
+                # Update or add OPTS line
+                if grep -q "^OPTS=" "$CONFIG_FILE"; then
+                    sudo sed -i "s/^OPTS=.*/OPTS=\"--no-beep --disable-ssl -t\"/" "$CONFIG_FILE"
+                    print_success "✅ Updated OPTS to: --no-beep --disable-ssl -t"
+                else
+                    echo 'OPTS="--no-beep --disable-ssl -t"' | sudo tee -a "$CONFIG_FILE" >/dev/null
+                    print_success "✅ Added OPTS: --no-beep --disable-ssl -t"
+                fi
+            fi
+
+            # Ensure other required settings
+            if ! grep -q "^PORT=" "$CONFIG_FILE"; then
+                echo "PORT=4200" | sudo tee -a "$CONFIG_FILE" >/dev/null
+            fi
+            if ! grep -q "^USER=" "$CONFIG_FILE"; then
+                echo "USER=nobody" | sudo tee -a "$CONFIG_FILE" >/dev/null
+            fi
+            if ! grep -q "^GROUP=" "$CONFIG_FILE"; then
+                echo "GROUP=nobody" | sudo tee -a "$CONFIG_FILE" >/dev/null
+            fi
+
+        else
+            # Create new configuration file
+            print_step "Creating new CentOS shellinabox configuration..."
+            sudo tee "$CONFIG_FILE" > /dev/null << 'EOF'
+# shellinabox daemon configuration
 USER=nobody
 GROUP=nobody
 CERTDIR=/var/lib/shellinabox
 PORT=4200
 OPTS="--no-beep --disable-ssl -t"
 EOF
-        
-        print_info "Created /etc/sysconfig/shellinaboxd configuration"
-        sudo systemctl daemon-reload
-    fi
-    
-    # Configure shellinabox for HTTP access (disable SSL)
-    print_step "Configuring shellinabox for HTTP access..."
-    CONFIG_FILE="/etc/default/shellinabox"
-    if [[ -f "$CONFIG_FILE" ]]; then
-        # Check if SHELLINABOX_ARGS already exists
-        if grep -q "^SHELLINABOX_ARGS=" "$CONFIG_FILE"; then
-            # Update existing SHELLINABOX_ARGS line
-            sudo sed -i "s/^SHELLINABOX_ARGS=.*/SHELLINABOX_ARGS=\"--no-beep --disable-ssl\"/" "$CONFIG_FILE"
-            print_info "Updated existing SHELLINABOX_ARGS with --disable-ssl"
-        else
-            # Add new SHELLINABOX_ARGS line
-            echo "SHELLINABOX_ARGS=\"--no-beep --disable-ssl\"" | sudo tee -a "$CONFIG_FILE" >/dev/null
-            print_info "Added SHELLINABOX_ARGS with --disable-ssl"
+            print_success "✅ Created $CONFIG_FILE with correct configuration"
         fi
+
+        print_info "CentOS shellinabox configuration completed"
+        sudo systemctl daemon-reload
+        sudo systemctl enable shellinaboxd
     fi
     
     # Start shellinabox service (different service names for different distros)

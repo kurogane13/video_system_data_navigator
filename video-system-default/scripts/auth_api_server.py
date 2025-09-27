@@ -194,6 +194,9 @@ class AuthenticatedAPIHandler(http.server.BaseHTTPRequestHandler):
                         self.send_error(404, "API endpoint not found")
                 else:
                     self.send_error(401, "Authentication required")
+            # Handle static files (JavaScript, CSS, etc.)
+            elif path.endswith('.js'):
+                self.serve_static_file(path)
             else:
                 self.send_error(404, "Not found")
                 
@@ -212,6 +215,10 @@ class AuthenticatedAPIHandler(http.server.BaseHTTPRequestHandler):
         try:
             parsed_url = urllib.parse.urlparse(self.path)
             path = parsed_url.path
+
+            # Debug logging for all POST requests
+            print(f"DEBUG: POST request received - Path: {path}, Headers: {dict(self.headers)}")
+            logger.info(f"POST request: {path}")
             
             if path == '/api/auth':
                 self.handle_authentication()
@@ -247,8 +254,10 @@ class AuthenticatedAPIHandler(http.server.BaseHTTPRequestHandler):
             elif path == "/api/storage_reserve_value_update" and self.is_authenticated():
                 self.handle_storage_update()
             elif path == "/api/system-specs" and self.is_authenticated():
+                print(f"DEBUG: Handling system-specs request")
                 self.handle_system_specs()
             elif path == "/api/detect-os" and self.is_authenticated():
+                print(f"DEBUG: Handling detect-os request")
                 self.handle_detect_os()
             elif path == "/api/validate_existing_playlist" and self.is_authenticated():
                 self.handle_validate_existing_playlist()
@@ -441,7 +450,41 @@ class AuthenticatedAPIHandler(http.server.BaseHTTPRequestHandler):
                 self.send_error(404, "Connection data file not found")
         except Exception as e:
             self.send_error(500, f"Error serving connection data file: {str(e)}")
-    
+
+    def serve_static_file(self, path):
+        """Serve static files like JavaScript and CSS from the docs directory"""
+        try:
+            # Remove leading slash and construct file path
+            filename = path.lstrip('/')
+            file_path = f'/home/gus/video-system/docs/{filename}'
+
+            # Security check - ensure file is in docs directory
+            if not os.path.abspath(file_path).startswith('/home/gus/video-system/docs/'):
+                self.send_error(403, "Access denied")
+                return
+
+            if os.path.exists(file_path) and os.path.isfile(file_path):
+                # Determine content type
+                if path.endswith('.js'):
+                    content_type = 'application/javascript'
+                elif path.endswith('.css'):
+                    content_type = 'text/css'
+                else:
+                    content_type = 'text/plain'
+
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+
+                self.send_response(200)
+                self.send_header('Content-type', f'{content_type}; charset=utf-8')
+                self.send_header('Cache-Control', 'public, max-age=3600')  # Cache for 1 hour
+                self.end_headers()
+                self.wfile.write(content.encode('utf-8'))
+            else:
+                self.send_error(404, f"Static file not found: {filename}")
+        except Exception as e:
+            self.send_error(500, f"Error serving static file: {str(e)}")
+
     def handle_authentication(self):
         """Handle login authentication"""
         try:

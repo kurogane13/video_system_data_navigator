@@ -4691,7 +4691,7 @@ modal-header-buttons {
                 </div>
                 
                 <div class="video-player-container">
-<video id="videoPlayer" class="video-player" controls preload="metadata">                        <source src="/videos/sample_video.mp4" type="video/mp4; codecs="avc1.42E01E, mp4a.40.2"">                        <source src="/videos/sample_video.mp4" type="video/mp4">                        <p>Your browser doesnt support HTML5 video. <a href="/videos/sample_video.mp4">Download the video</a> instead.</p>                    </video>
+<video id="videoPlayer" class="video-player" controls preload="metadata">                        <p>Video player ready. Select a video from the library to play.</p>                    </video>
                 </div>
                 
                 <div class="video-status-container">
@@ -10997,7 +10997,23 @@ For Ubuntu/Debian systems, try these commands:
             const modal = document.getElementById('system-specs-modal');
             const terminal = document.getElementById('system-specs-terminal');
             const loading = document.getElementById('system-specs-loading');
-            
+
+            // Debug: Check if elements exist
+            console.log('System Specs Debug:', {
+                modal: modal,
+                terminal: terminal,
+                loading: loading
+            });
+
+            if (!modal || !terminal || !loading) {
+                console.error('System specs elements not found!', {
+                    modal: !!modal,
+                    terminal: !!terminal,
+                    loading: !!loading
+                });
+                return;
+            }
+
             // Show modal and loading state
             modal.style.display = 'block';
             loading.style.display = 'block';
