@@ -11,7 +11,7 @@ uploads, terminal access, API testing, and storage management.
 ================================================================================
 
 DIRECTORY STRUCTURE:
-/home/gus/video-system/
+/home/$USER/video-system/
 ├── videos/         # Video files (MP4, WebM, AVI, MOV, MKV, FLV)
 ├── docs/          # Web interface files
 ├── scripts/       # Python API server
@@ -94,7 +94,7 @@ STORAGE MANAGEMENT:
 
 START SERVICES:
 sudo systemctl start nginx
-cd /home/gus/video-system/scripts && python3 auth_api_server.py &
+cd /home/$USER/video-system/scripts && python3 auth_api_server.py &
 
 STOP SERVICES:
 sudo systemctl stop nginx
@@ -105,7 +105,7 @@ sudo systemctl status nginx
 ps aux | grep auth_api_server
 
 VIEW LOGS:
-tail -f /home/gus/video-system/logs/debug.log
+tail -f /home/$USER/video-system/logs/debug.log
 # Or use the UI debug log viewer
 
 ================================================================================
@@ -117,14 +117,14 @@ DISK QUOTA MANAGEMENT:
 - Set reserved disk space to prevent system crashes
 - Automatic upload limit calculations
 - Persistent configuration across reboots
-- Located: /home/gus/video-system/docs/reserved_value.txt
+- Located: /home/$USER/video-system/docs/reserved_value.txt
 
 NGINX CONFIG: /etc/nginx/sites-available/video-library
-API SERVER: /home/gus/video-system/scripts/auth_api_server.py
+API SERVER: /home/$USER/video-system/scripts/auth_api_server.py
 
 FILE PERMISSIONS:
-sudo chown -R gus:gus /home/gus/video-system/
-chmod +x /home/gus/video-system/scripts/*.py
+sudo chown -R $USER:$USER /home/$USER/video-system/
+chmod +x /home/$USER/video-system/scripts/*.py
 
 FIREWALL:
 sudo ufw allow 10000/tcp
@@ -144,12 +144,12 @@ Authentication Failed:
 Videos Not Loading:
 - Check file permissions
 - Verify video formats (MP4, WebM, AVI, MOV, MKV, FLV)
-- Check /home/gus/video-system/videos/ directory
+- Check /home/$USER/video-system/videos/ directory
 
 Server Connection Issues:
 - Verify services are running
 - Check firewall settings: sudo ufw status
-- Check logs: tail -f /home/gus/video-system/logs/debug.log
+- Check logs: tail -f /home/$USER/video-system/logs/debug.log
 
 Upload Failures:
 - Check disk space
@@ -168,7 +168,7 @@ API Calls Failing:
 
 DEBUG LOG ACCESS:
 - Use "🔍 View Debug Logs" button in UI
-- Or check: /home/gus/video-system/logs/debug.log
+- Or check: /home/$USER/video-system/logs/debug.log
 - Real-time monitoring available in web interface
 
 ================================================================================
@@ -188,7 +188,7 @@ All features are accessible through the main dashboard interface.
 Check debug logs for detailed error information.
 Use terminal access for direct system troubleshooting.
 
-System Path: /home/gus/video-system/
+System Path: /home/$USER/video-system/
 Main Interface: http://your-server:10000
 API Endpoint: http://your-server:9090
 
