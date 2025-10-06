@@ -14,7 +14,7 @@ A comprehensive, secure video streaming and file management system with advanced
 
 ### Directory Structure
 ```
-/home/gus/video-system/
+/home/$USER/video-system/
 ├── videos/         # Video files (MP4, WebM, AVI, MOV, MKV, FLV)
 ├── docs/          # Web interface files
 ├── scripts/       # Python API server
@@ -24,7 +24,7 @@ A comprehensive, secure video streaming and file management system with advanced
 ### Installation & Launch
 ```bash
 # Start the API server
-cd /home/gus/video-system/scripts && python3 auth_api_server.py &
+cd /home/$USER/video-system/scripts && python3 auth_api_server.py &
 
 # Access the web interface
 # Navigate to: http://your-server:9090
@@ -170,7 +170,7 @@ nano ~/.crds
 
 ### Start Services
 ```bash
-cd /home/gus/video-system/scripts && python3 auth_api_server.py &
+cd /home/$USER/video-system/scripts && python3 auth_api_server.py &
 ```
 
 ### Stop Services
@@ -185,7 +185,7 @@ ps aux | grep auth_api_server
 
 ### View Logs
 ```bash
-tail -f /home/gus/video-system/logs/debug.log
+tail -f /home/$USER/video-system/logs/debug.log
 # Or use the UI debug log viewer
 ```
 
@@ -196,12 +196,12 @@ tail -f /home/gus/video-system/logs/debug.log
 - Set reserved disk space to prevent system crashes
 - Automatic upload limit calculations
 - Persistent configuration across reboots
-- Located: `/home/gus/video-system/docs/reserved_value.txt`
+- Located: `/home/$USER/video-system/docs/reserved_value.txt`
 
 ### File Permissions
 ```bash
-sudo chown -R gus:gus /home/gus/video-system/
-chmod +x /home/gus/video-system/scripts/*.py
+sudo chown -R $USER:$USER /home/$USER/video-system/
+chmod +x /home/$USER/video-system/scripts/*.py
 ```
 
 ### Firewall Configuration
@@ -256,12 +256,12 @@ sudo ufw allow 4200/tcp
 #### Videos Not Loading
 - Check file permissions
 - Verify video formats (MP4, WebM, AVI, MOV, MKV, FLV)
-- Check `/home/gus/video-system/videos/` directory
+- Check `/home/$USER/video-system/videos/` directory
 
 #### Server Connection Issues
 - Verify services are running
 - Check firewall settings: `sudo ufw status`
-- Check logs: `tail -f /home/gus/video-system/logs/debug.log`
+- Check logs: `tail -f /home/$USER/video-system/logs/debug.log`
 
 #### Upload Failures
 - Check disk space
@@ -303,7 +303,7 @@ sudo ufw allow 4200/tcp
 
 ### Debug Log Access
 - Use **"🔍 View Debug Logs"** button in UI
-- Or check: `/home/gus/video-system/logs/debug.log`
+- Or check: `/home/$USER/video-system/logs/debug.log`
 - Real-time monitoring available in web interface
 - Download logs using download button in debug modal
 
@@ -323,7 +323,7 @@ sudo ufw allow 4200/tcp
 All features are accessible through the main dashboard interface.
 - Check debug logs for detailed error information
 - Use terminal access for direct system troubleshooting
-- System Path: `/home/gus/video-system/`
+- System Path: `/home/$USER/video-system/`
 
 ## 📄 License
 
