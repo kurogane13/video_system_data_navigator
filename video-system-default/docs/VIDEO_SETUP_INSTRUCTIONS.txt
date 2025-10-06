@@ -27,12 +27,7 @@ SERVICES:
 ================================================================================
 
 CREDENTIALS FILE: ~/.crds
-Current Admin Credentials: admin:ad18b632
 Format: username:password
-
-DEFAULT LOGIN:
-Username: admin
-Password: ad18b632
 
 To change credentials:
 1. Edit: nano ~/.crds
